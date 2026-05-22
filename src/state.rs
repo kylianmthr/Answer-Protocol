@@ -10,6 +10,19 @@ pub struct Player {
     tx: mpsc::UnboundedSender<String>,
 }
 
+impl Player {
+    pub fn new(username: &str, tx: mpsc::UnboundedSender<String>) -> Self {
+        // Test si le username est trop court etc..
+        Self {
+            name: username.to_string(),
+            room: "Initial room".to_string(),
+            hp: 100,
+            inventory: Vec::new(),
+            tx: tx,
+        }
+    }
+}
+
 struct World {
 
 }
