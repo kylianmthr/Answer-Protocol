@@ -1,0 +1,31 @@
+world:
+  rooms:
+    loc.square:
+      name: "Village Square"
+      description: "A bustling square with cobblestone paths."
+      exits:
+        north: "loc.tavern"
+        east: "loc.shop"
+      items: ["item.herbs"]
+      npcs: ["npc.guard"]
+    loc.tavern:
+      name: "The Prancing Pony"
+      description: "A cozy tavern filled with warmth and laughter."
+      exits:
+        south: "loc.square"
+      items: []
+      npcs: []
+
+  items:
+    item.herbs:
+      name: "Herbs"
+      description: "Some fresh herbs."
+      obtainable: true
+
+  npcs:
+    npc.guard:
+      name: "Village Guard"
+      description: "A stern-looking guard."
+      dialogue: ["Stay safe, traveler.", "The roads can be dangerous."]
+      hp: 50
+      hostile: false
