@@ -45,19 +45,53 @@ async fn add_player(username: String, state: Arc<SharedState>, tx: mpsc::Unbound
     players.insert(username, player);
 }
 
-//async fn handle_commands(
-//    mut lines: Lines<BufReader<OwnedReadHalf>>,
-//    mut write: OwnedWriteHalf,
-//    mut rx: mpsc::UnboundedReceiver<String>,
-//    username: String,
-//    state: Arc<SharedState>,
-//) {
-//    loop {
-//        tokio::select! {
-//            line =
-//        }
-//    }
-//}
+async fn remove_player(username: &str, state: Arc<SharedState>) {
+    let mut players = state.players.lock().await;
+    players.remove(username);
+}
+
+async fn handle_commands(
+    mut lines: Lines<BufReader<OwnedReadHalf>>,
+    mut write: OwnedWriteHalf,
+    mut rx: mpsc::UnboundedReceiver<String>,
+    username: String,
+    state: Arc<SharedState>,
+) {
+    loop {
+        tokio::select! {
+            line = lines.next_line() => {
+                match line {
+                    Ok(Some(line)) => {
+                        let mut parts = line.splitn(2, ' ');
+                        let command = parts.next().unwrap_or("");
+                        let args = parts.next().unwrap_or("").trim();
+                        match command {
+                            "LOOK" => {
+                                println!("{} looks around", username);
+                            },
+                            "QUIT" => {
+                                write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
+                                break;
+                            },
+                            _ => {
+                                println!("Unknown command from {}: {}", username, command);
+                            }
+                        }
+                    },
+                    Ok(None) => {
+                        println!("Client {} disconnected", username);
+                        break;
+                    },
+                    Err(e) => {
+                        println!("Error reading from {}: {}", username, e);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    remove_player(&username, Arc::clone(&state)).await;
+}
 
 pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
     println!("New client connected. Need to authenticate");
@@ -81,6 +115,7 @@ pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
             }
         }
     };
+    handle_commands(lines, writer, rx, username, Arc::clone(&state)).await;
 }
 
 pub async fn handle_client_auth(
