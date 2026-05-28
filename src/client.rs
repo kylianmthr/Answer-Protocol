@@ -42,7 +42,15 @@ async fn verify_authentication(
 async fn add_player(username: String, state: Arc<SharedState>, tx: mpsc::UnboundedSender<String>) {
     let mut players = state.players.lock().await;
     let player = Player::new(&username, tx);
-    players.insert(username, player);
+    players.insert(username.clone(), player.clone());
+    let mut world_state = state.world_state.lock().await;
+    let world_data = state.world_data.lock().await;
+    let initial_room_state = world_state
+        .room
+        .get_mut(world_data.world.initial_room.as_str())
+        .unwrap();
+    initial_room_state.players.push(username.clone());
+    println!("{:#?}", initial_room_state);
 }
 
 async fn remove_player(username: &str, state: Arc<SharedState>) {
@@ -73,6 +81,9 @@ async fn handle_commands(
                                 write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
                                 break;
                             },
+                            "LOOK" => {
+
+                            },
                             _ => {
                                 println!("Unknown command from {}: {}", username, command);
                             }
@@ -91,6 +102,11 @@ async fn handle_commands(
         }
     }
     remove_player(&username, Arc::clone(&state)).await;
+}
+
+async fn print_debug_state(state: Arc<SharedState>) {
+    let world_state = state.world_state.lock().await;
+    println!("{:#?}", world_state);
 }
 
 pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
