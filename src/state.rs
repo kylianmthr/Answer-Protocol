@@ -1,67 +1,90 @@
+use crate::validate::validate_exits;
+use crate::validate::validate_yaml;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
+use validator::Validate;
+use validator::ValidationErrors;
 
-#[derive(Clone)]
+#[derive(Clone, Validate)]
 pub struct Player {
-    name: String,
-    hp: i32,
-    inventory: Vec<String>,
-    tx: mpsc::UnboundedSender<String>,
+    #[validate(length(min = 3, max = 20))]
+    pub name: String,
+    pub hp: i32,
+    pub inventory: Vec<String>,
+    pub tx: mpsc::UnboundedSender<String>,
     pub room: String,
 }
 
 impl Player {
-    pub fn new(username: &str, room: &str, tx: mpsc::UnboundedSender<String>) -> Self {
-        // Test si le username est trop court etc..
-        Self {
+    pub fn new(
+        username: &str,
+        room: &str,
+        tx: mpsc::UnboundedSender<String>,
+    ) -> Result<Self, ValidationErrors> {
+        let player = Self {
             name: username.to_string(),
             hp: 100,
             inventory: Vec::new(),
             tx,
             room: room.to_string(),
-        }
+        };
+        player.validate()?;
+        Ok(player)
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct Room {
+    #[validate(length(min = 1))]
     pub name: String,
+    #[validate(length(min = 1))]
     pub description: String,
+    #[validate(custom(function = "validate_exits"))]
     pub exits: HashMap<String, String>,
     pub items: Vec<String>,
     pub npcs: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct Item {
-    name: String,
-    description: String,
-    obtainable: bool,
+    #[validate(length(min = 1, max = 255))]
+    pub name: String,
+    #[validate(length(min = 1, max = 255))]
+    pub description: String,
+    pub obtainable: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct Npc {
-    name: String,
-    description: String,
-    dialogue: Vec<String>,
-    hp: i32,
-    hostile: bool,
-    room: String,
+    #[validate(length(min = 1, max = 255))]
+    pub name: String,
+    #[validate(length(min = 1, max = 255))]
+    pub description: String,
+    pub dialogue: Vec<String>,
+    #[validate(range(min = 1, max = 100))]
+    pub hp: i32,
+    pub hostile: bool,
+    #[validate(length(min = 1, max = 255))]
+    pub room: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct World {
     pub initial_room: String,
+    #[validate(nested)]
     pub rooms: HashMap<String, Room>,
-    items: HashMap<String, Item>,
-    npcs: HashMap<String, Npc>,
+    #[validate(nested)]
+    pub items: HashMap<String, Item>,
+    #[validate(nested)]
+    pub npcs: HashMap<String, Npc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct WorldData {
+    #[validate(nested)]
     pub world: World,
 }
 
@@ -69,6 +92,8 @@ impl WorldData {
     pub fn load_from_file(path: &str) -> Self {
         let content = std::fs::read_to_string(path).expect("Could not read world data file");
         let world: Self = serde_yaml::from_str(&content).expect("Could not parse world data");
+        world.validate().expect("World data validation failed");
+        validate_yaml(&world).expect("World data cross-reference validation failed");
         return world;
     }
 }
