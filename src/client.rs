@@ -55,7 +55,11 @@ async fn add_player(username: String, state: Arc<SharedState>, tx: mpsc::Unbound
 }
 
 async fn remove_player(username: &str, state: Arc<SharedState>) {
+    let mut world_state = state.world_state.lock().await;
     let mut players = state.players.lock().await;
+    let player = players.get(username).unwrap();
+    let room = world_state.room.get_mut(player.room.as_str()).unwrap();
+    room.players.retain(|p| p != username);
     players.remove(username);
 }
 
