@@ -1,4 +1,5 @@
 use crate::validate::validate_exits;
+use crate::validate::validate_yaml;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -10,10 +11,10 @@ use validator::ValidationErrors;
 #[derive(Clone, Validate)]
 pub struct Player {
     #[validate(length(min = 3, max = 20))]
-    name: String,
-    hp: i32,
-    inventory: Vec<String>,
-    tx: mpsc::UnboundedSender<String>,
+    pub name: String,
+    pub hp: i32,
+    pub inventory: Vec<String>,
+    pub tx: mpsc::UnboundedSender<String>,
     pub room: String,
 }
 
@@ -50,24 +51,24 @@ pub struct Room {
 #[derive(Debug, Deserialize, Validate)]
 pub struct Item {
     #[validate(length(min = 1, max = 255))]
-    name: String,
+    pub name: String,
     #[validate(length(min = 1, max = 255))]
-    description: String,
-    obtainable: bool,
+    pub description: String,
+    pub obtainable: bool,
 }
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct Npc {
     #[validate(length(min = 1, max = 255))]
-    name: String,
+    pub name: String,
     #[validate(length(min = 1, max = 255))]
-    description: String,
-    dialogue: Vec<String>,
+    pub description: String,
+    pub dialogue: Vec<String>,
     #[validate(range(min = 1, max = 100))]
-    hp: i32,
-    hostile: bool,
+    pub hp: i32,
+    pub hostile: bool,
     #[validate(length(min = 1, max = 255))]
-    room: String,
+    pub room: String,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -76,9 +77,9 @@ pub struct World {
     #[validate(nested)]
     pub rooms: HashMap<String, Room>,
     #[validate(nested)]
-    items: HashMap<String, Item>,
+    pub items: HashMap<String, Item>,
     #[validate(nested)]
-    npcs: HashMap<String, Npc>,
+    pub npcs: HashMap<String, Npc>,
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -92,6 +93,7 @@ impl WorldData {
         let content = std::fs::read_to_string(path).expect("Could not read world data file");
         let world: Self = serde_yaml::from_str(&content).expect("Could not parse world data");
         world.validate().expect("World data validation failed");
+        validate_yaml(&world).expect("World data cross-reference validation failed");
         return world;
     }
 }
