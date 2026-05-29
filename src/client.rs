@@ -1,4 +1,6 @@
 use crate::look::look;
+use crate::move_cmd;
+use crate::move_cmd::move_cmd;
 use crate::state::Player;
 use crate::state::SharedState;
 use std::sync::Arc;
@@ -81,6 +83,16 @@ async fn handle_commands(
                         match command {
                             "LOOK" => {
                                 write.write_all(format!("OK {}\n", look(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send look response");
+                            },
+                            "MOVE" => {
+                                match move_cmd(username.clone(), args.to_string(), Arc::clone(&state)).await {
+                                    Ok(new_room) => {
+                                        write.write_all(format!("OK {}\n", new_room).as_bytes()).await.expect("Can't send move response");
+                                    },
+                                    Err(e) => {
+                                        write.write_all(format!("ERR {}\n", e).as_bytes()).await.expect("Can't send move error response");
+                                    }
+                                }
                             },
                             "QUIT" => {
                                 write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");

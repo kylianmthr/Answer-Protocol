@@ -5,6 +5,7 @@ mod server;
 use server::run_server;
 mod client;
 mod look;
+mod move_cmd;
 
 #[tokio::main]
 async fn main() {

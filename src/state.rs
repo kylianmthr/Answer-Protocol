@@ -28,11 +28,11 @@ impl Player {
 
 #[derive(Debug, Deserialize)]
 pub struct Room {
-    name: String,
-    description: String,
-    exits: HashMap<String, String>,
-    items: Vec<String>,
-    npcs: Vec<String>,
+    pub name: String,
+    pub description: String,
+    pub exits: HashMap<String, String>,
+    pub items: Vec<String>,
+    pub npcs: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -55,7 +55,7 @@ pub struct Npc {
 #[derive(Debug, Deserialize)]
 pub struct World {
     pub initial_room: String,
-    rooms: HashMap<String, Room>,
+    pub rooms: HashMap<String, Room>,
     items: HashMap<String, Item>,
     npcs: HashMap<String, Npc>,
 }
