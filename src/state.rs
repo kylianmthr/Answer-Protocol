@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
@@ -9,16 +10,18 @@ pub struct Player {
     hp: i32,
     inventory: Vec<String>,
     tx: mpsc::UnboundedSender<String>,
+    pub room: String,
 }
 
 impl Player {
-    pub fn new(username: &str, tx: mpsc::UnboundedSender<String>) -> Self {
+    pub fn new(username: &str, room: &str, tx: mpsc::UnboundedSender<String>) -> Self {
         // Test si le username est trop court etc..
         Self {
             name: username.to_string(),
             hp: 100,
             inventory: Vec::new(),
-            tx: tx,
+            tx,
+            room: room.to_string(),
         }
     }
 }
@@ -76,7 +79,7 @@ pub struct NpcState {
     hp: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct RoomState {
     items: Vec<String>,
     npcs: Vec<String>,

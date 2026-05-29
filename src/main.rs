@@ -4,6 +4,7 @@ use state::SharedState;
 mod server;
 use server::run_server;
 mod client;
+mod look;
 
 #[tokio::main]
 async fn main() {

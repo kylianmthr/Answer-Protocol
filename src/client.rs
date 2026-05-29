@@ -1,3 +1,4 @@
+use crate::look::look;
 use crate::state::Player;
 use crate::state::SharedState;
 use std::sync::Arc;
@@ -41,14 +42,14 @@ async fn verify_authentication(
 
 async fn add_player(username: String, state: Arc<SharedState>, tx: mpsc::UnboundedSender<String>) {
     let mut players = state.players.lock().await;
-    let player = Player::new(&username, tx);
-    players.insert(username.clone(), player.clone());
     let mut world_state = state.world_state.lock().await;
     let world_data = state.world_data.lock().await;
     let initial_room_state = world_state
         .room
         .get_mut(world_data.world.initial_room.as_str())
         .unwrap();
+    let player = Player::new(&username, world_data.world.initial_room.as_str(), tx);
+    players.insert(username.clone(), player.clone());
     initial_room_state.players.push(username.clone());
     println!("{:#?}", initial_room_state);
 }
@@ -75,14 +76,11 @@ async fn handle_commands(
                         let args = parts.next().unwrap_or("").trim();
                         match command {
                             "LOOK" => {
-                                println!("{} looks around", username);
+                                write.write_all(format!("OK {}\n", look(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send look response");
                             },
                             "QUIT" => {
                                 write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
                                 break;
-                            },
-                            "LOOK" => {
-
                             },
                             _ => {
                                 println!("Unknown command from {}: {}", username, command);
