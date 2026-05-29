@@ -1,4 +1,5 @@
 world:
+  initial_room: "loc.tavern"
   rooms:
     loc.square:
       name: "Village Square"
@@ -29,3 +30,4 @@ world:
       dialogue: ["Stay safe, traveler.", "The roads can be dangerous."]
       hp: 50
       hostile: false
+      room: "loc.square"
