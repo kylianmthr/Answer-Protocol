@@ -1,3 +1,4 @@
+use crate::validate::validate_exits;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -34,10 +35,13 @@ impl Player {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct Room {
+    #[validate(length(min = 1))]
     pub name: String,
+    #[validate(length(min = 1))]
     pub description: String,
+    #[validate(custom(function = "validate_exits"))]
     pub exits: HashMap<String, String>,
     pub items: Vec<String>,
     pub npcs: Vec<String>,
@@ -60,16 +64,18 @@ pub struct Npc {
     room: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct World {
     pub initial_room: String,
+    #[validate(nested)]
     pub rooms: HashMap<String, Room>,
     items: HashMap<String, Item>,
     npcs: HashMap<String, Npc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct WorldData {
+    #[validate(nested)]
     pub world: World,
 }
 
@@ -77,6 +83,7 @@ impl WorldData {
     pub fn load_from_file(path: &str) -> Self {
         let content = std::fs::read_to_string(path).expect("Could not read world data file");
         let world: Self = serde_yaml::from_str(&content).expect("Could not parse world data");
+        world.validate().expect("World data validation failed");
         return world;
     }
 }
