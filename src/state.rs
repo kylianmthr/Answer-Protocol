@@ -47,20 +47,26 @@ pub struct Room {
     pub npcs: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct Item {
+    #[validate(length(min = 1, max = 255))]
     name: String,
+    #[validate(length(min = 1, max = 255))]
     description: String,
     obtainable: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct Npc {
+    #[validate(length(min = 1, max = 255))]
     name: String,
+    #[validate(length(min = 1, max = 255))]
     description: String,
     dialogue: Vec<String>,
+    #[validate(range(min = 1, max = 100))]
     hp: i32,
     hostile: bool,
+    #[validate(length(min = 1, max = 255))]
     room: String,
 }
 
@@ -69,7 +75,9 @@ pub struct World {
     pub initial_room: String,
     #[validate(nested)]
     pub rooms: HashMap<String, Room>,
+    #[validate(nested)]
     items: HashMap<String, Item>,
+    #[validate(nested)]
     npcs: HashMap<String, Npc>,
 }
 
