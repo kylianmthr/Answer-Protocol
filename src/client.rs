@@ -42,7 +42,11 @@ async fn verify_authentication(
     Err(UserError::BadPrefix)
 }
 
-async fn add_player(username: String, state: Arc<SharedState>, tx: mpsc::UnboundedSender<String>) {
+async fn add_player(
+    username: String,
+    state: Arc<SharedState>,
+    tx: mpsc::UnboundedSender<String>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut players = state.players.lock().await;
     let mut world_state = state.world_state.lock().await;
     let world_data = state.world_data.lock().await;
@@ -50,10 +54,11 @@ async fn add_player(username: String, state: Arc<SharedState>, tx: mpsc::Unbound
         .room
         .get_mut(world_data.world.initial_room.as_str())
         .unwrap();
-    let player = Player::new(&username, world_data.world.initial_room.as_str(), tx);
+    let player = Player::new(&username, world_data.world.initial_room.as_str(), tx)?;
     players.insert(username.clone(), player.clone());
     initial_room_state.players.push(username.clone());
     println!("{:#?}", initial_room_state);
+    Ok(())
 }
 
 async fn remove_player(username: &str, state: Arc<SharedState>) {
@@ -156,7 +161,7 @@ pub async fn handle_client_auth(
     let line = lines.next_line().await?;
     let username = verify_authentication(line, Arc::clone(&state)).await?;
     let (tx, rx) = mpsc::unbounded_channel();
-    add_player(username.clone(), Arc::clone(&state), tx).await;
+    add_player(username.clone(), Arc::clone(&state), tx).await?;
     writer.write_all(b"OK connected\n").await?;
     println!("Client authenticated");
     Ok((username, rx))

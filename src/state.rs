@@ -3,9 +3,12 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
+use validator::Validate;
+use validator::ValidationErrors;
 
-#[derive(Clone)]
+#[derive(Clone, Validate)]
 pub struct Player {
+    #[validate(length(min = 3, max = 20))]
     name: String,
     hp: i32,
     inventory: Vec<String>,
@@ -14,15 +17,20 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(username: &str, room: &str, tx: mpsc::UnboundedSender<String>) -> Self {
-        // Test si le username est trop court etc..
-        Self {
+    pub fn new(
+        username: &str,
+        room: &str,
+        tx: mpsc::UnboundedSender<String>,
+    ) -> Result<Self, ValidationErrors> {
+        let player = Self {
             name: username.to_string(),
             hp: 100,
             inventory: Vec::new(),
             tx,
             room: room.to_string(),
-        }
+        };
+        player.validate()?;
+        Ok(player)
     }
 }
 
