@@ -135,5 +135,26 @@ fn main() {
             }
         }
     });
+    //let res = rx_incoming
+    //    .recv()
+    //    .expect("Failed to receive message from server");
+    //if matches!(res, ServerMessage::Ok(_)) {
+    //    println!("Successfully connected to the server!");
+    //}
+    //    loop {
+    //        tx_outgoing
+    //            .send()
+    //            .expect("Failed to send AUTH message");
+    //        let res = rx_incoming
+    //            .recv()
+    //            .expect("Failed to receive message from server");
+    //        if matches!(res, ServerMessage::Ok(_)) {
+    //            println!("Auth validated");
+    //            break;
+    //        } else if let ServerMessage::Err { code, message } = res {
+    //            eprintln!("Error {}: {}", code, message);
+    //            std::process::exit(1);
+    //        }
+    //    }
     println!("Listening on port {}", port);
 }
