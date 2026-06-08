@@ -1,4 +1,4 @@
-use eframe::egui;
+use eframe::egui::{self, style};
 
 
 // init screen egui(GUI)
@@ -39,10 +39,39 @@ struct GamePage {
 impl eframe::App for MyTap{
 	// modify (mut) once per frame
 	fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-		egui::CentralPanel::default().show(ctx, |ui|
+		let remove_border_bg = egui::Frame::central_panel(&ctx.style()).
+				inner_margin(egui::Margin::same(0));
+		egui::CentralPanel::default()
+		.frame(remove_border_bg)
+		.show(ctx, |ui|
 		{
-			ui.heading("Awnser Protocol");
-			// add atrr
+			let image_log_bg = egui::include_image!("../asset_manager/log_bg_1.png");
+			let get_rect_screen = ui.max_rect(); // window_size
+
+			egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
+			match &mut self.screen {
+				Screen::LoginView(login_page) => {
+					ui.vertical_centered(|ui| {
+						ui.add_space(250.0);
+
+						let style_field = ui.style_mut();
+
+						style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
+						style_field.override_font_id = Some(
+							egui::FontId::proportional(24.0));
+
+						ui.colored_label(egui::Color32::WHITE, "username:");
+						ui.text_edit_singleline(&mut login_page.username);
+
+						ui.add_space(42.0);
+						ui.colored_label(egui::Color32::WHITE, "address serveur:");
+						ui.text_edit_singleline(&mut login_page.serveur_adrr);
+					});
+				}
+				Screen::GameView(game_page) => {
+					todo!("atrr of game screen")
+				}
+			};
 		});
 	}
 }
