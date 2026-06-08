@@ -69,7 +69,7 @@ impl eframe::App for MyTap{
 					});
 				}
 				Screen::GameView(game_page) => {
-					todo!("atrr of game screen")
+					todo!("atrr of game screen")  // c'est genial todo
 				}
 			};
 		});
