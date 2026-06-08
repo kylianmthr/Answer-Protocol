@@ -2,6 +2,8 @@ mod window;
 use window::MyTap;
 use eframe::egui;
 
+// CONST icon 
+
 fn main() -> Result<(), eframe::Error> {
 	let options_visualizeur = eframe::NativeOptions::default();
 
