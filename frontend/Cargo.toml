@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eframe = "0.31"
+egui_extras = {version = "0.31.1", features = ["image"]}
 thiserror = "2"
 validator = { version = "0.20.0", features = ["derive"] }
