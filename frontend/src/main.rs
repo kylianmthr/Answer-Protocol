@@ -48,7 +48,8 @@ fn main() -> Result<(), eframe::Error> {
     });
     let (rx_incoming, tx_outgoing) = auth(rx_incoming, tx_outgoing);
     println!("Listening on port {}", port);
-    eframe::run_native(
+let options_visualizeur = eframe::NativeOptions::default();
+eframe::run_native(
       "Answer Protocol",
       options_visualizeur,
       Box::new(|cc| {
