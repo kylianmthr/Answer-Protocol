@@ -21,7 +21,7 @@ impl Default for MyTap {
 // mult screen manager
 enum Screen {
 	LoginView(LoginPage),
-	GameView(GamePage)
+	GameView(GamePage),
 }
 
 // macro to define default field with given type username == ""
