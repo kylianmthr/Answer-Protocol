@@ -1,25 +1,22 @@
 use crate::parser::ServerMessage;
 
 pub fn auth(
-    rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
-    tx_outgoing: std::sync::mpsc::Sender<String>,
-) -> (
-    std::sync::mpsc::Receiver<ServerMessage>,
-    std::sync::mpsc::Sender<String>,
-) {
+    rx_incoming: &std::sync::mpsc::Receiver<ServerMessage>,
+    tx_outgoing: &std::sync::mpsc::Sender<String>,
+    username: String,
+) -> Result<(), String> {
     loop {
         let msg = rx_incoming
             .recv()
-            .expect("Failed to receive message from reader thread");
+            .map_err(|e| format!("Failed to receive: {}", e))?;
         match msg {
             ServerMessage::Ok(data) => {
-                let username = "test";
                 tx_outgoing
                     .send(format!("CONNECT {}", username))
-                    .expect("Failed to send message");
+                    .map_err(|e| format!("Failed to send: {}", e))?;
                 let msg = rx_incoming
                     .recv()
-                    .expect("Failed to receive message from reader thread");
+                    .map_err(|e| format!("Failed to receive: {}", e))?;
 
                 match msg {
                     ServerMessage::Ok(data) => break,
@@ -31,5 +28,5 @@ pub fn auth(
             ServerMessage::Evt { evt_type, data } => eprintln!("Error: {}", data),
         }
     }
-    (rx_incoming, tx_outgoing)
+    Ok(())
 }

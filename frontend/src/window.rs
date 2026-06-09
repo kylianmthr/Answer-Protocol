@@ -1,4 +1,8 @@
+use crate::auth::auth;
+use crate::parser::ServerMessage;
 use eframe::egui;
+use egui::Ui;
+use egui_notify::Toasts;
 
 // init screen egui(GUI)
 //app::MyTape
@@ -9,10 +13,13 @@ pub struct MyTap {
 // default start program into login page
 // modify into update fn with self.screen to change state
 //e.g self.screen = Screen::GameView{...}
-impl Default for MyTap {
-    fn default() -> Self {
+impl MyTap {
+    pub fn new(
+        rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
+        tx_outgoing: std::sync::mpsc::Sender<String>,
+    ) -> Self {
         Self {
-            screen: Screen::LoginView(LoginPage::default()),
+            screen: Screen::LoginView(LoginPage::new(rx_incoming, tx_outgoing)),
         }
     }
 }
@@ -24,10 +31,27 @@ enum Screen {
 }
 
 // macro to define default field with given type username == ""
-#[derive(Default)]
 struct LoginPage {
     username: String,
+    rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
+    tx_outgoing: std::sync::mpsc::Sender<String>,
     serveur_adrr: String, // sock into str -> .parse() convert to u16
+    toasts: Toasts,
+}
+
+impl LoginPage {
+    pub fn new(
+        rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
+        tx_outgoing: std::sync::mpsc::Sender<String>,
+    ) -> Self {
+        Self {
+            username: String::new(),
+            rx_incoming,
+            tx_outgoing,
+            serveur_adrr: String::new(),
+            toasts: Toasts::default(),
+        }
+    }
 }
 
 struct GamePage {
@@ -48,8 +72,22 @@ impl MyTap {
             ui.text_edit_singleline(&mut login_page.username);
 
             ui.add_space(42.0);
-            ui.colored_label(egui::Color32::WHITE, "address serveur:");
-            ui.text_edit_singleline(&mut login_page.serveur_adrr);
+            if ui.button("Login").clicked() {
+                match auth(
+                    &login_page.rx_incoming,
+                    &login_page.tx_outgoing,
+                    login_page.username.clone(),
+                ) {
+                    Ok(_) => {
+                        login_page.toasts.success("Login successful".to_string());
+                        println!("Login successful");
+                    }
+                    Err(e) => {
+                        println!("Login failed: {}", e);
+                        login_page.toasts.error(format!("Login failed: {}", e));
+                    }
+                }
+            }
         });
     }
 }
@@ -57,7 +95,7 @@ impl MyTap {
 // apply contrat (App) on MyTap
 impl eframe::App for MyTap {
     // modify (mut) once per frame
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
         let remove_border_bg =
             egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(0));
         egui::CentralPanel::default()
@@ -72,9 +110,13 @@ impl eframe::App for MyTap {
                         Self::draw_field_log(ui, login_page);
                     }
                     Screen::GameView(game_page) => {
-                        todo!("atrr of game screen") // c'est genial todo
+                        todo!("atrr of game screen") // c'est genial todo // oui mais je prefere les derives
                     }
                 };
             });
+
+        if let Screen::LoginView(login_page) = &mut self.screen {
+            login_page.toasts.show(ctx);
+        }
     }
 }
