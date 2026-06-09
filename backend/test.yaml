@@ -6,7 +6,7 @@ world:
       description: "A bustling square with cobblestone paths."
       exits:
         north: "loc.tavern"
-        east: "loc.shop"
+        #east: "loc.shop"
       items: ["item.herbs"]
       npcs: ["npc.guard"]
     loc.tavern:
@@ -14,13 +14,17 @@ world:
       description: "A cozy tavern filled with warmth and laughter."
       exits:
         south: "loc.square"
-      items: []
+      items: ["item.flocondavoine"]
       npcs: []
 
   items:
     item.herbs:
       name: "Herbs"
       description: "Some fresh herbs."
+      obtainable: true
+    item.flocondavoine:
+      name: "Flacon d'avoine"
+      description: "C'est pas bon mais c'est solide"
       obtainable: true
 
   npcs:
