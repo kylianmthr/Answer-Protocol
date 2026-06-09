@@ -3,102 +3,10 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::sync::mpsc;
 use std::thread;
-use thiserror::Error;
-
-enum EventType {
-    PresenceEnter,
-    PresenceLeave,
-    RoomChat,
-    GroupChat,
-    GlobalChat,
-    Invite,
-    Join,
-    Leave,
-    Stats,
-}
-
-enum ServerMessage {
-    Ok(String),
-    Err { code: u32, message: String },
-    Evt { evt_type: EventType, data: String },
-}
-
-#[derive(Debug, Error)]
-enum UserError {
-    #[error("INVALID_USERNAME")]
-    InvalidUsername,
-    #[error("ALREADY_EXIST")]
-    AlreadyExist,
-    #[error("BAD_PREFIX")]
-    BadPrefix,
-    #[error("INVALID_READ")]
-    InvalidRead,
-}
-
-fn parser(msg: &str) -> Result<ServerMessage, &str> {
-    let mut parts = msg.splitn(2, ' ');
-    let status = parts.next().unwrap_or("");
-    let args = parts.next().unwrap_or("").trim();
-    match status {
-        "OK" => Ok(ServerMessage::Ok(args.to_string())),
-        "ERR" => {
-            let mut splited_args = args.splitn(2, ' ');
-            let code: u32 = splited_args
-                .next()
-                .unwrap_or("")
-                .to_string()
-                .parse()
-                .unwrap_or(0);
-            Ok(ServerMessage::Err {
-                code: (code),
-                message: (splited_args.next().unwrap_or("").to_string()),
-            })
-        }
-        "EVT" => {
-            let words: Vec<&str> = args.split_whitespace().collect();
-            match words.as_slice() {
-                ["ROOM", "PRESENCE", "ENTER", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::PresenceEnter,
-                    data: rest.join(" "),
-                }),
-                ["ROOM", "PRESENCE", "LEAVE", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::PresenceLeave,
-                    data: rest.join(" "),
-                }),
-                ["ROOM", "CHAT", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::RoomChat,
-                    data: rest.join(" "),
-                }),
-                ["GLOBAL", "CHAT", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::GlobalChat,
-                    data: rest.join(" "),
-                }),
-                ["GROUP", "CHAT", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::GroupChat,
-                    data: rest.join(" "),
-                }),
-                ["GROUP", "INVITE", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::Invite,
-                    data: rest.join(" "),
-                }),
-                ["GROUP", "JOIN", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::Join,
-                    data: rest.join(" "),
-                }),
-                ["GROUP", "LEAVE", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::Leave,
-                    data: rest.join(" "),
-                }),
-                ["STATS", rest @ ..] => Ok(ServerMessage::Evt {
-                    evt_type: EventType::Stats,
-                    data: rest.join(" "),
-                }),
-                _ => Err("jsp"),
-            }
-        }
-        _ => Err("jsp"),
-    }
-}
+mod auth;
+use auth::auth;
+mod parser;
+use parser::{ServerMessage, parser};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -135,26 +43,6 @@ fn main() {
             }
         }
     });
-    //let res = rx_incoming
-    //    .recv()
-    //    .expect("Failed to receive message from server");
-    //if matches!(res, ServerMessage::Ok(_)) {
-    //    println!("Successfully connected to the server!");
-    //}
-    //    loop {
-    //        tx_outgoing
-    //            .send()
-    //            .expect("Failed to send AUTH message");
-    //        let res = rx_incoming
-    //            .recv()
-    //            .expect("Failed to receive message from server");
-    //        if matches!(res, ServerMessage::Ok(_)) {
-    //            println!("Auth validated");
-    //            break;
-    //        } else if let ServerMessage::Err { code, message } = res {
-    //            eprintln!("Error {}: {}", code, message);
-    //            std::process::exit(1);
-    //        }
-    //    }
+    let (rx_incoming, tx_outgoing) = auth(rx_incoming, tx_outgoing);
     println!("Listening on port {}", port);
 }
