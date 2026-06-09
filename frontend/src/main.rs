@@ -1,3 +1,6 @@
+mod window;
+use window::MyTap;
+use eframe::egui;
 use std::env;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
@@ -8,7 +11,7 @@ use auth::auth;
 mod parser;
 use parser::{ServerMessage, parser};
 
-fn main() {
+fn main() -> Result<(), eframe::Error> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         eprintln!("Usage: {} <number>", args[0]);
@@ -45,4 +48,13 @@ fn main() {
     });
     let (rx_incoming, tx_outgoing) = auth(rx_incoming, tx_outgoing);
     println!("Listening on port {}", port);
+let options_visualizeur = eframe::NativeOptions::default();
+eframe::run_native(
+      "Answer Protocol",
+      options_visualizeur,
+      Box::new(|cc| {
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+        Ok(Box::new(MyTap::default()))
+      }),
+    )
 }
