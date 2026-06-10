@@ -1,8 +1,9 @@
-use crate::auth::auth;
+use egui::{FontData, FontDefinitions, FontFamily, Ui};
 use crate::parser::ServerMessage;
-use eframe::egui;
-use egui::Ui;
 use egui_notify::Toasts;
+use crate::auth::auth;
+use std::sync::Arc;
+use eframe::egui;
 
 // init screen egui(GUI)
 //app::MyTape
@@ -58,20 +59,60 @@ struct GamePage {
     item: String,
 }
 
+// cas ou tu veux ajouter des font cas specifique
+// pub struct Font {
+// 	undertale_font: String,
+// }
+
+pub fn font_style(egui_ctx: &egui::Context) {
+	let mut undertale_font = FontDefinitions::default();
+
+	undertale_font.font_data.insert("undertale_font".to_owned(),
+		Arc::new(FontData::from_static(include_bytes!("../font/undertale_font.ttf"))));
+
+	undertale_font.families.insert(FontFamily::Name("undertale_font".into()),
+		vec!["undertale_font".to_owned()],
+	);
+
+	//font priority projet
+	undertale_font.families.get_mut(&FontFamily::Proportional)
+	.unwrap()
+	.insert(0, "undertale_font".to_owned());
+
+	// security_font
+	undertale_font.families.get_mut(&FontFamily::Monospace)
+	.unwrap()
+	.push(("undertale_font").to_owned());
+
+	egui_ctx.set_fonts(undertale_font);
+}
+
 impl MyTap {
     fn draw_field_log(ui: &mut egui::Ui, login_page: &mut LoginPage) {
         ui.vertical_centered(|ui| {
             ui.add_space(250.0);
 
-            let style_field = ui.style_mut();
+			ui.scope(|ui|{
+				let style_field = ui.style_mut();
+				let rounding_field = egui::CornerRadius::same(10_u8);
 
-            style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
-            style_field.override_font_id = Some(egui::FontId::proportional(24.0));
+				style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
+				style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
 
-            ui.colored_label(egui::Color32::WHITE, "username:");
-            ui.text_edit_singleline(&mut login_page.username);
+				style_field.visuals.widgets.active.corner_radius = rounding_field;
+				style_field.visuals.widgets.hovered.corner_radius = rounding_field;
+				style_field.visuals.widgets.inactive.corner_radius = rounding_field;
+				style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
+				style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
 
-            ui.add_space(42.0);
+				ui.add(egui::TextEdit::singleline(&mut login_page.username).
+					hint_text("Username:")
+					.font(egui::FontId::new(20.0_f32,
+					egui::FontFamily::Name("undertale_font".into())))
+				);
+			});
+
+			ui.add_space(42.0);
             if ui.button("Login").clicked() {
                 match auth(
                     &login_page.rx_incoming,
