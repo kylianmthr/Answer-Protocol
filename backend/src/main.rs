@@ -4,10 +4,12 @@ use state::SharedState;
 mod server;
 use server::run_server;
 mod broadcast;
+mod chat;
 mod client;
 mod look;
 mod move_cmd;
 mod validate;
+mod who;
 
 #[tokio::main]
 async fn main() {
