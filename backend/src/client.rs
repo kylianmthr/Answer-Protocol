@@ -1,3 +1,4 @@
+use crate::chat::chat_room;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
 use crate::state::Player;
@@ -56,7 +57,7 @@ async fn add_player(
     let player = Player::new(&username, world_data.world.initial_room.as_str(), tx)?;
     players.insert(username.clone(), player.clone());
     initial_room_state.players.push(username.clone());
-    println!("{:#?}", initial_room_state);
+    //println!("{:#?}", initial_room_state);
     Ok(())
 }
 
@@ -103,8 +104,21 @@ async fn handle_commands(
                                 break;
                             },
                             "CHAT" => {
-
-                            }
+                                let scope = args.splitn(2, ' ').next().unwrap_or("");
+                                //println!("Chat command with scope: {}", scope);
+                                match scope {
+                                    "ROOM" => {
+                                        let message = args.strip_prefix("ROOM ").unwrap_or("").trim();
+                                        chat_room(message.to_string(), username.clone(), Arc::clone(&state)).await;
+                                    },
+                                    _ => {
+                                        write.write_all(b"ERR UNKNOWN_SCOPE\n").await.expect("Can't send unknown scope error");
+                                    }
+                                }
+                            },
+                            "WHO" => {
+                                write.write_all(crate::who::who(username.clone(), Arc::clone(&state)).await.as_bytes()).await.expect("Can't send who response");
+                            },
                             _ => {
                                 println!("Unknown command from {}: {}", username, command);
                             }
