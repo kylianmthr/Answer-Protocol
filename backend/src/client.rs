@@ -102,6 +102,9 @@ async fn handle_commands(
                                 write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
                                 break;
                             },
+                            "CHAT" => {
+
+                            }
                             _ => {
                                 println!("Unknown command from {}: {}", username, command);
                             }
@@ -115,6 +118,11 @@ async fn handle_commands(
                         println!("Error reading from {}: {}", username, e);
                         break;
                     }
+                }
+            }
+            msg = rx.recv() => {
+                if let Some(msg) = msg {
+                    write.write_all(format!("{}\n", msg).as_bytes()).await.expect("Can't send message");
                 }
             }
         }
