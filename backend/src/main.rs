@@ -3,6 +3,7 @@ mod state;
 use state::SharedState;
 mod server;
 use server::run_server;
+mod broadcast;
 mod client;
 mod look;
 mod move_cmd;
