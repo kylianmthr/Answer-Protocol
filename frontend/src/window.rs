@@ -38,8 +38,8 @@ struct LoginPage {
     tx_outgoing: std::sync::mpsc::Sender<String>,
     serveur_adrr: String, // sock into str -> .parse() convert to u16
     toasts: Toasts,
-	tx_auth_result: std::sync::mpsc::SyncSender<Result<(), String>>,
-	rx_auth_result: std::sync::mpsc::Receiver<Result<(), String>>
+	tx_auth_result: std::sync::mpsc::SyncSender<(std::sync::mpsc::Receiver<ServerMessage>, Result<(), String>)>,
+	rx_auth_result: std::sync::mpsc::Receiver<(std::sync::mpsc::Receiver<ServerMessage>, Result<(), String>)>  // tuple
 }
 
 impl LoginPage {
@@ -118,12 +118,40 @@ impl MyTap {
 			});
 
 			ui.add_space(42.0);
-			// check auth before frame
-			if let Ok(result) = login_page.rx_auth_result.try_recv() {
+
+			ui.scope(|ui| {
+				let mut style_button = ui.style().as_ref().clone();
+				let round_button = egui::CornerRadius::same(10_u8);
+
+				style_button.visuals.extreme_bg_color = egui::Color32::BLUE;
+				style_button.visuals.widgets.active.corner_radius = round_button;
+				style_button.visuals.widgets.inactive.corner_radius = round_button;
+				style_button.visuals.widgets.hovered.corner_radius = round_button;
+
+				ui.set_style(style_button);
+
+				if ui.button("Login").clicked() {
+					if let Some(rx) = login_page.rx_incoming.take() {
+						let username = login_page.username.clone();
+						let tx_outgoing = login_page.tx_outgoing.clone();
+						let tx_auth_result = login_page.tx_auth_result.clone();
+
+					// thread hors UI
+						std::thread::spawn(move || {
+							let res_auth = auth(&rx, &tx_outgoing, username);
+							tx_auth_result.send((rx, res_auth)).ok()
+						});
+					}
+            	}
+			});
+
+			if let Ok((rx, result)) = login_page.rx_auth_result.try_recv() {
+				login_page.rx_incoming = Some(rx);
 				match result {
 					Ok(_) => {
                         login_page.toasts.success("Login successful".to_string());
                         println!("Login successful");
+						todo!("envoyer au screen game")
                     }
                     Err(e) => {
 						login_page.toasts.error(format!("Login failed: {}", e));
@@ -131,17 +159,6 @@ impl MyTap {
                     }
 				}
 			}
-            if ui.button("Login").clicked() {
-				if let Some(rx) = login_page.rx_incoming.take() {
-					let username = login_page.username.clone();
-					let tx_outgoing = login_page.tx_outgoing.clone();
-					let tx_auth_result = login_page.tx_auth_result.clone();
-					// thread hors UI
-					std::thread::spawn(move || {
-						tx_auth_result.send(auth(&rx, &tx_outgoing, username)).ok()
-					});
-				}
-            }
         });
     }
 }
