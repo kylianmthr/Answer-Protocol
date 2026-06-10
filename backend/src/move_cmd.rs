@@ -1,4 +1,4 @@
-use crate::state::SharedState;
+use crate::{broadcast::broadcast_room, state::SharedState};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -30,7 +30,23 @@ pub async fn move_cmd(
         .unwrap();
     next_room.players.push(username.clone());
     let current_room = world_state.room.get_mut(player.room.as_str()).unwrap();
+    let current_room_id = current_room.id.clone();
+    let next_room_id = room.exits.get(direction.as_str()).unwrap().to_string();
     current_room.players.retain(|p| p != &username);
     player.room = room.exits.get(direction.as_str()).unwrap().to_string();
+    drop(world_state);
+    drop(players);
+    broadcast_room(
+        current_room_id.as_str(),
+        format!("EVT ROOM PRESENCE LEAVE {}", username).as_str(),
+        state.clone(),
+    )
+    .await;
+    broadcast_room(
+        next_room_id.as_str(),
+        format!("EVT ROOM PRESENCE ENTER {}", username).as_str(),
+        state.clone(),
+    )
+    .await;
     Ok(room.exits.get(direction.as_str()).unwrap().to_string())
 }
