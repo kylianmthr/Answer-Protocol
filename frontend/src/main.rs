@@ -8,6 +8,7 @@ use window::MyTap;
 mod auth;
 mod parser;
 use parser::{ServerMessage, parser};
+use::egui_extras;
 
 fn main() -> Result<(), eframe::Error> {
     let args: Vec<String> = env::args().collect();

@@ -101,7 +101,7 @@ impl eframe::App for MyTap {
         egui::CentralPanel::default()
             .frame(remove_border_bg)
             .show(ctx, |ui| {
-                let image_log_bg = egui::include_image!("../asset_manager/log_bg_1.png");
+                let image_log_bg = egui::include_image!("../asset_manager/asset_log.jpeg");
                 let get_rect_screen = ui.max_rect(); // window_size
 
                 egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
