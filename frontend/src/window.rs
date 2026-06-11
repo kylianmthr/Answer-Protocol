@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
-use crate::auth::auth;
-use crate::parser::ServerMessage;
-use eframe::egui;
+// use crate::auth::auth;
+use crate::{action_game::click_game, game_mod::state_mod::{GameScreen, StateRoom}};
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
+use crate::parser::ServerMessage;
 use egui_notify::Toasts;
+use eframe::egui;
 
 // init screen egui(GUI)
 //app::MyTape
@@ -29,7 +30,7 @@ impl MyTap {
 // mult screen manager
 enum Screen {
     LoginView(LoginPage),
-    GameView(GamePage),
+    GameView(GameScreen),
 }
 
 // macro to define default field with given type username == ""
@@ -37,7 +38,6 @@ struct LoginPage {
     username: String,
     rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
     tx_outgoing: std::sync::mpsc::Sender<String>,
-    serveur_adrr: String, // sock into str -> .parse() convert to u16
     toasts: Toasts,
     waiting_res: bool,
 }
@@ -51,15 +51,10 @@ impl LoginPage {
             username: String::new(),
             rx_incoming,
             tx_outgoing,
-            serveur_adrr: String::new(),
             toasts: Toasts::default(),
             waiting_res: false,
         }
     }
-}
-
-struct GamePage {
-    username: String,
 }
 
 // cas ou tu veux ajouter des font cas specifique
@@ -159,21 +154,30 @@ impl MyTap {
 impl eframe::App for MyTap {
     // modify (mut) once per frame
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
-        let remove_border_bg =
+		if let Screen::GameView(_) = &self.screen {
+			egui::Panel::bottom("game_button")
+			.min_size(42.0_f32)
+			.show_inside(ctx, |ui| {
+				ui.horizontal(|ui| {
+					click_game(ui, "MOVE");
+					click_game(ui, "ATTCAK");
+				})
+			});
+		}
+		let remove_border_bg =
             egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(0));
-        egui::CentralPanel::default()
+			egui::CentralPanel::default()
             .frame(remove_border_bg)
-            .show(ctx, |ui| {
+            .show_inside(ctx, |ui| {
                 let image_log_bg = egui::include_image!("../asset_manager/asset_log.jpeg");
                 let get_rect_screen = ui.max_rect(); // window_size
-
-                egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
+				egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
                 match &mut self.screen {
                     Screen::LoginView(login_page) => {
                         Self::draw_field_log(ui, login_page);
                     }
-                    Screen::GameView(game_page) => {
-                        todo!("atrr of game screen") // c'est genial todo // oui mais je prefere les derives
+                    Screen::GameView(game_screen) => {
+                        game_screen.draw_room(ui); // c'est genial todo // oui mais je prefere les derives
                     }
                 };
             });
@@ -188,8 +192,9 @@ impl eframe::App for MyTap {
                     Ok(ServerMessage::Ok(_)) => {
                         login_page.waiting_res = false;
                         login_page.toasts.success("Login successful".to_string());
-                        transition = Some(Screen::GameView(GamePage {
-                            username: login_page.username.clone(),
+                        transition = Some(Screen::GameView(GameScreen {
+                            // username: login_page.username.clone(),
+							current_room: StateRoom::Room1,
                         }));
                     }
                     Ok(ServerMessage::Err { code: 500, message }) => {
