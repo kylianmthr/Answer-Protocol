@@ -162,7 +162,7 @@ pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
             Ok((username, rx)) => break (username, rx),
             Err(e) => {
                 if writer
-                    .write_all(format!("ERR {}\n", e).as_bytes())
+                    .write_all(format!("ERR 500 {}\n", e).as_bytes())
                     .await
                     .is_err()
                 {
