@@ -50,7 +50,7 @@ impl LoginPage {
         let (tx_auth_result, rx_auth_result) = std::sync::mpsc::sync_channel(1);  // create comm chan send --- recieve
 		Self {
             username: String::new(),
-            rx_incoming: Some(rx_incoming),
+            rx_incoming: Some(rx_incoming), // Some(rx) == chanel
             tx_outgoing,
             serveur_adrr: String::new(),
             toasts: Toasts::default(),
@@ -145,13 +145,14 @@ impl MyTap {
             	}
 			});
 
+						// (tuple (chanel , OK || Err))
 			if let Ok((rx, result)) = login_page.rx_auth_result.try_recv() {
-				login_page.rx_incoming = Some(rx);
+				login_page.rx_incoming = Some(rx);  // Some possede (rx(channel)) --> take == None le thread la pris
 				match result {
 					Ok(_) => {
                         login_page.toasts.success("Login successful".to_string());
                         println!("Login successful");
-						todo!("envoyer au screen game")
+						// todo!("envoyer au screen game")
                     }
                     Err(e) => {
 						login_page.toasts.error(format!("Login failed: {}", e));
