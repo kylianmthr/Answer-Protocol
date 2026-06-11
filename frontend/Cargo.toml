@@ -6,7 +6,8 @@ edition = "2024"
 [dependencies]
 eframe = "0.34.3"
 egui = "0.34"
-egui_extras = {version = "0.34.3", features = ["image"]}
+egui_extras = {version = "0.34.3", features = ["all_loaders"]}
+image = {version = "0.25", features = ["jpeg"]}
 thiserror = "2"
 validator = { version = "0.20.0", features = ["derive"] }
 egui-notify = "0.22.0"
