@@ -45,6 +45,9 @@ fn main() -> Result<(), eframe::Error> {
         }
     });
     println!("Listening on port {}", port);
+    rx_incoming
+        .recv()
+        .expect("Failed to receive message from server");
     let options_visualizeur = eframe::NativeOptions::default();
     eframe::run_native(
         "Answer Protocol",
