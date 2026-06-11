@@ -20,12 +20,12 @@ pub fn auth(
 
                 match msg {
                     ServerMessage::Ok(data) => break,
-                    ServerMessage::Err { code, message } => eprintln!("ERR {}: {}", code, message),
-                    ServerMessage::Evt { evt_type, data } => eprintln!("Error: {}", data),
+                    ServerMessage::Err { code, message } => return Err(format!("ERR {}: {}", code, message)),
+                    ServerMessage::Evt { evt_type, data } => return Err(format!("Error: {}", data)),
                 }
             }
-            ServerMessage::Err { code, message } => eprintln!("ERR {}: {}", code, message),
-            ServerMessage::Evt { evt_type, data } => eprintln!("Error: {}", data),
+            ServerMessage::Err { code, message } => return Err(format!("ERR {}: {}", code, message)),
+            ServerMessage::Evt { evt_type, data } => return Err(format!("Error: {}", data)),
         }
     }
     Ok(())
