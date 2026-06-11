@@ -153,6 +153,34 @@ impl MyTap {
             });
         });
     }
+
+    fn draw_test(ui: &mut egui::Ui) {
+        ui.vertical_centered(|ui| {
+            ui.add_space(250.0);
+            ui.scope(|ui| {
+                let style_field = ui.style_mut();
+                let rounding_field = egui::CornerRadius::same(10_u8);
+
+                style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
+                style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
+
+                style_field.visuals.widgets.active.corner_radius = rounding_field;
+                style_field.visuals.widgets.hovered.corner_radius = rounding_field;
+                style_field.visuals.widgets.inactive.corner_radius = rounding_field;
+                style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
+                style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
+
+                ui.add(
+                    egui::TextEdit::singleline(&mut String::new())
+                        .hint_text("Username:")
+                        .font(egui::FontId::new(
+                            20.0_f32,
+                            egui::FontFamily::Name("undertale_font".into()),
+                        )),
+                );
+            });
+        });
+    }
 }
 
 // apply contrat (App) on MyTap
@@ -161,6 +189,14 @@ impl eframe::App for MyTap {
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
         let remove_border_bg =
             egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(0));
+        if matches!(&self.screen, Screen::GameView(_)) {
+            egui::SidePanel::right("chat_panel")
+                .min_width(300.0)
+                .show(ctx, |ui| {
+                    ui.heading("Chat");
+                    // todo!() // chat panel
+                });
+        }
         egui::CentralPanel::default()
             .frame(remove_border_bg)
             .show(ctx, |ui| {
@@ -173,7 +209,7 @@ impl eframe::App for MyTap {
                         Self::draw_field_log(ui, login_page);
                     }
                     Screen::GameView(game_page) => {
-                        todo!("atrr of game screen") // c'est genial todo // oui mais je prefere les derives
+                        Self::draw_test(ui);
                     }
                 };
             });
