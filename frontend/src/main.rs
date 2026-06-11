@@ -1,13 +1,21 @@
 mod window;
-use std::env;
+mod game_mod {
+	pub mod state_mod;
+	pub mod room_1;
+	pub mod room_2;
+	pub mod room_3;
+}
+
+mod action_game;
 use std::io::{BufRead, BufReader, Write};
+use parser::{ServerMessage, parser};
 use std::net::TcpStream;
 use std::sync::mpsc;
-use std::thread;
 use window::MyTap;
-mod auth;
+use std::thread;
+use std::env;
 mod parser;
-use parser::{ServerMessage, parser};
+mod auth;
 
 use crate::window::font_style;
 
