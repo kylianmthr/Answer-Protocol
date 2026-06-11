@@ -37,6 +37,7 @@ struct LoginPage {
     tx_outgoing: std::sync::mpsc::Sender<String>,
     serveur_adrr: String, // sock into str -> .parse() convert to u16
     toasts: Toasts,
+    waiting_res: bool,
 }
 
 impl LoginPage {
@@ -50,6 +51,7 @@ impl LoginPage {
             tx_outgoing,
             serveur_adrr: String::new(),
             toasts: Toasts::default(),
+            waiting_res: false,
         }
     }
 }
@@ -73,20 +75,25 @@ impl MyTap {
 
             ui.add_space(42.0);
             if ui.button("Login").clicked() {
-                match auth(
-                    &login_page.rx_incoming,
-                    &login_page.tx_outgoing,
-                    login_page.username.clone(),
-                ) {
-                    Ok(_) => {
-                        login_page.toasts.success("Login successful".to_string());
-                        println!("Login successful");
-                    }
-                    Err(e) => {
-                        println!("Login failed: {}", e);
-                        login_page.toasts.error(format!("Login failed: {}", e));
-                    }
-                }
+                login_page
+                    .tx_outgoing
+                    .send(format!("CONNECT {}", login_page.username))
+                    .unwrap();
+                login_page.waiting_res = true;
+                //match auth(
+                //    &login_page.rx_incoming,
+                //    &login_page.tx_outgoing,
+                //    login_page.username.clone(),
+                //) {
+                //    Ok(_) => {
+                //        login_page.toasts.success("Login successful".to_string());
+                //        println!("Login successful");
+                //    }
+                //    Err(e) => {
+                //        println!("Login failed: {}", e);
+                //        login_page.toasts.error(format!("Login failed: {}", e));
+                //    }
+                //}
             }
         });
     }
@@ -117,6 +124,20 @@ impl eframe::App for MyTap {
 
         if let Screen::LoginView(login_page) = &mut self.screen {
             login_page.toasts.show(ctx);
+
+            if login_page.waiting_res {
+                match login_page.rx_incoming.try_recv() {
+                    Ok(ServerMessage::Ok(_)) => {
+                        login_page.waiting_res = false;
+                        login_page.toasts.success("Login successful".to_string());
+                    }
+                    Ok(ServerMessage::Err { code: 500, message }) => {
+                        login_page.waiting_res = false;
+                        login_page.toasts.error(message.clone());
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }
