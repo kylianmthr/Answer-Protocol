@@ -1,4 +1,5 @@
 use eframe::egui;
+use crate::action_game::ComandeButton;
 
 use crate::game_mod:: {
 	room_1,
@@ -10,12 +11,14 @@ use crate::game_mod:: {
 pub enum StateRoom {
 	Room1,
 	Room2,
-	Room3
+	Room3,
 }
 
 
 pub struct GameScreen {
 	// pub username: String, // pour transition je te l'ai deplacer de l'ancien GamePage
+	pub tx_outgoing: std::sync::mpsc::Sender<String>,
+	pub button_mod: ComandeButton,
 	pub current_room: StateRoom,
 }
 

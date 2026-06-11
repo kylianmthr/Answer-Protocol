@@ -1,11 +1,12 @@
-use std::sync::Arc;
 
 // use crate::auth::auth;
-use crate::{action_game::click_game, game_mod::state_mod::{GameScreen, StateRoom}};
-use egui::{FontData, FontDefinitions, FontFamily, Ui};
-use crate::parser::ServerMessage;
-use egui_notify::Toasts;
-use eframe::egui;
+use crate::{action_game::ComandeButton,
+	game_mod::{state_mod::{GameScreen, StateRoom}}};
+	use egui::{FontData, FontDefinitions, FontFamily, Ui};
+	use crate::parser::ServerMessage;
+	use egui_notify::Toasts;
+	use std::sync::Arc;
+	use eframe::egui;
 
 // init screen egui(GUI)
 //app::MyTape
@@ -33,7 +34,6 @@ enum Screen {
     GameView(GameScreen),
 }
 
-// macro to define default field with given type username == ""
 struct LoginPage {
     username: String,
     rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
@@ -103,14 +103,14 @@ impl MyTap {
                 let style_field = ui.style_mut();
                 let rounding_field = egui::CornerRadius::same(10_u8);
 
-                style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
-                style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
-
-                style_field.visuals.widgets.active.corner_radius = rounding_field;
-                style_field.visuals.widgets.hovered.corner_radius = rounding_field;
-                style_field.visuals.widgets.inactive.corner_radius = rounding_field;
                 style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
+                style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
                 style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
+                style_field.visuals.widgets.inactive.corner_radius = rounding_field;
+                style_field.visuals.widgets.hovered.corner_radius = rounding_field;
+                style_field.visuals.widgets.active.corner_radius = rounding_field;
+                style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
+
 
                 ui.add(
                     egui::TextEdit::singleline(&mut login_page.username)
@@ -154,22 +154,12 @@ impl MyTap {
 impl eframe::App for MyTap {
     // modify (mut) once per frame
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
-		if let Screen::GameView(_) = &self.screen {
-			egui::Panel::bottom("game_button")
-			.min_size(42.0_f32)
-			.show_inside(ctx, |ui| {
-				ui.horizontal(|ui| {
-					click_game(ui, "MOVE");
-					click_game(ui, "ATTCAK");
-				})
-			});
-		}
 		let remove_border_bg =
             egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(0));
 			egui::CentralPanel::default()
             .frame(remove_border_bg)
             .show_inside(ctx, |ui| {
-                let image_log_bg = egui::include_image!("../asset_manager/asset_log.jpeg");
+                let image_log_bg = egui::include_image!("../asset_manager/asset_up.jpeg");
                 let get_rect_screen = ui.max_rect(); // window_size
 				egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
                 match &mut self.screen {
@@ -177,8 +167,10 @@ impl eframe::App for MyTap {
                         Self::draw_field_log(ui, login_page);
                     }
                     Screen::GameView(game_screen) => {
-                        game_screen.draw_room(ui); // c'est genial todo // oui mais je prefere les derives
-                    }
+						let tx_quest = game_screen.tx_outgoing.clone();
+						game_screen.button_mod.draw_click_game(ui, &tx_quest);
+                        game_screen.draw_room(ui);
+					}
                 };
             });
 
@@ -194,18 +186,22 @@ impl eframe::App for MyTap {
                         login_page.toasts.success("Login successful".to_string());
                         transition = Some(Screen::GameView(GameScreen {
                             // username: login_page.username.clone(),
-							current_room: StateRoom::Room1,
-                        }));
+							current_room: StateRoom::Room1, // replace with state room
+							tx_outgoing: login_page.tx_outgoing.clone(),
+							button_mod: ComandeButton::macthing_action(),
+						}));
                     }
                     Ok(ServerMessage::Err { code: 500, message }) => {
-                        login_page.waiting_res = false;
                         login_page.toasts.error(message.clone());
+                        login_page.waiting_res = false;
                     }
                     _ => {}
                 }
             }
         }
+		if let Screen::GameView(game_screen) = &mut self.screen {
 
+		}
         if let Some(new_screen) = transition {
             self.screen = new_screen;
         }
