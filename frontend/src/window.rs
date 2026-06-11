@@ -50,7 +50,7 @@ impl LoginPage {
         let (tx_auth_result, rx_auth_result) = std::sync::mpsc::sync_channel(1);  // create comm chan send --- recieve
 		Self {
             username: String::new(),
-            rx_incoming: Some(rx_incoming), // Some(rx) == chanel
+            rx_incoming: Some(rx_incoming), // Some(rx) in channel
             tx_outgoing,
             serveur_adrr: String::new(),
             toasts: Toasts::default(),
