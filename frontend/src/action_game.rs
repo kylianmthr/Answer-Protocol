@@ -4,6 +4,7 @@ use eframe::egui;
 pub enum StateAction {
 	MOVE,
 	ATTACK,
+	LOOK,
 }
 
 pub struct ComandeButton {
@@ -26,6 +27,7 @@ impl ComandeButton {
 
 		match self.current_action.clone() {
 			None => {
+				// menu princpipal
 				ui.put(rect_put, |ui: &mut egui::Ui| {
 					ui.horizontal(|ui| {
 						if Self::click_button(ui, "MOVE") {
@@ -33,6 +35,9 @@ impl ComandeButton {
 						}
 						if Self::click_button(ui, "ATTACK") {
 							self.current_action = Some(StateAction::ATTACK);
+						}
+						if Self::click_button(ui, "LOOK") {
+							self.current_action = Some(StateAction::LOOK);
 						}
 					}).response
 				});
@@ -61,6 +66,10 @@ impl ComandeButton {
 		}
 		Some(StateAction::ATTACK) => {
 				tx_outcomming.send("ATTACK".to_string()).unwrap();
+				self.current_action = None;
+			}
+		Some(StateAction::LOOK) => {
+				tx_outcomming.send("LOOK".to_string()).unwrap();
 				self.current_action = None;
 			}
 		}
