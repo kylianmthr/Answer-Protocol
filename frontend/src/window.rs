@@ -1,5 +1,3 @@
-
-// use crate::auth::auth;
 use crate::{action_game::ComandeButton,
 	game_mod::{state_mod::{GameScreen, StateRoom}}};
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
@@ -9,8 +7,6 @@ use std::sync::Arc;
 use eframe::egui;
 
 
-// init screen egui(GUI)
-//app::MyTape
 pub struct MyTap {
     screen: Screen,
     pub rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
@@ -44,10 +40,6 @@ struct LoginPage {
     username: String,
     toasts: Toasts,
     waiting_res: bool,
-}
-
-struct GamePage {
-    username: String,
 }
 
 impl LoginPage {
