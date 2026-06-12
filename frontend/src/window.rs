@@ -3,8 +3,7 @@ use crate::{action_game::ComandeButton,
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
 use crate::parser::ServerMessage;
 use egui_notify::Toasts;
-use core::time;
-use std::{char::CharTryFromError, sync::Arc};
+use std::{sync::Arc};
 use eframe::egui;
 
 
@@ -33,7 +32,7 @@ impl MyTap {
 // mult screen manager
 enum Screen {
     LoginView(LoginPage),
-	Loading_mod(u8),
+	LoadingMod(u8),
     GameView(GameScreen),
 }
 
@@ -185,7 +184,7 @@ impl eframe::App for MyTap {
 						egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
 						Self::draw_field_log(ui, login_page, &self.tx_outgoing.clone());
                     }
-					Screen::Loading_mod(load_mod) => {
+					Screen::LoadingMod(load_mod) => {
 						Self::loading_animate(ui);
 						*load_mod -= 1;
 						ui.ctx().request_repaint(); // frame / frame 
@@ -208,7 +207,7 @@ impl eframe::App for MyTap {
                         login_page.waiting_res = false;
                         login_page.toasts.success("Login successful".to_string());
                         self.tx_outgoing.send("LOOK".to_string()).unwrap();
-						transition = Some(Screen::Loading_mod(90));
+						transition = Some(Screen::LoadingMod(90));
 						}
                     Ok(ServerMessage::Err { code: 500, message }) => {
                         login_page.toasts.error(message);
@@ -219,7 +218,7 @@ impl eframe::App for MyTap {
             }
         }
 
-		if let Screen::Loading_mod(load_mod) = &mut self.screen {
+		if let Screen::LoadingMod(load_mod) = &mut self.screen {
 			if *load_mod == 0 {
 				transition = Some(Screen::GameView(GameScreen {
 					current_room: StateRoom::Room1,
@@ -232,7 +231,7 @@ impl eframe::App for MyTap {
 				while let Ok(msg) = self.rx_incoming.try_recv() {
 					match msg {
 						ServerMessage::Ok(reponse) => {
-							transition = Some(Screen::Loading_mod(90));
+							transition = Some(Screen::LoadingMod(90));
 							if reponse.contains("loc.tavern") {
 								game_screen.current_room = StateRoom::Room1;
 							}
