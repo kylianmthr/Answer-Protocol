@@ -3,7 +3,8 @@ use crate::{action_game::ComandeButton,
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
 use crate::parser::ServerMessage;
 use egui_notify::Toasts;
-use std::sync::Arc;
+use core::time;
+use std::{char::CharTryFromError, sync::Arc};
 use eframe::egui;
 
 
@@ -32,6 +33,7 @@ impl MyTap {
 // mult screen manager
 enum Screen {
     LoginView(LoginPage),
+	Loading_mod(u8),
     GameView(GameScreen),
 }
 
@@ -91,6 +93,28 @@ pub fn font_style(egui_ctx: &egui::Context) {
 }
 
 impl MyTap {
+	fn loading_animate(ui: &mut egui::Ui) {
+		let get_rect = ui.max_rect();
+		ui.painter().
+		rect_filled(get_rect, 0.0, egui::Color32::BLACK);
+
+		let time_load = ui.ctx().input(|i| i.time);
+		let a = ((time_load * 2.0).sin() * 127.0 + 128.0) as u8;
+
+		let char_spining = ['*', ' '];
+		let pos = (time_load * 1.0) as usize % char_spining.len();
+		let spin = char_spining[pos];
+		ui.vertical_centered(|ui| {
+		ui.add_space(get_rect.height() / 2.0 - 30.0);
+		ui.label(
+				egui::RichText::new(format!(" {} UNDER_TAP", spin))
+				.size(32.0_f32)
+				.color(egui::Color32::from_rgba_unmultiplied(114, 125, 253, a))
+				);
+			});
+		}
+
+
     fn draw_field_log(ui: &mut egui::Ui, login_page: &mut LoginPage, tx: &std::sync::mpsc::Sender<String>) {
         ui.vertical_centered(|ui| {
             ui.add_space(250.0);
@@ -150,17 +174,22 @@ impl eframe::App for MyTap {
     // modify (mut) once per frame
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
 		let remove_border_bg =
-            egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(0));
+			egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(0));
 			egui::CentralPanel::default()
             .frame(remove_border_bg)
             .show_inside(ctx, |ui| {
-                let image_log_bg = egui::include_image!("../asset_manager/asset_up.jpeg");
                 let get_rect_screen = ui.max_rect(); // window_size
-				egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
                 match &mut self.screen {
                     Screen::LoginView(login_page) => {
-                        Self::draw_field_log(ui, login_page, &self.tx_outgoing.clone());
+		                let image_log_bg = egui::include_image!("../asset_manager/asset_up.jpeg");
+						egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
+						Self::draw_field_log(ui, login_page, &self.tx_outgoing.clone());
                     }
+					Screen::Loading_mod(load_mod) => {
+						Self::loading_animate(ui);
+						*load_mod -= 1;
+						ui.ctx().request_repaint(); // frame / frame 
+					}
                     Screen::GameView(game_screen) => {
                         game_screen.draw_room(ui);
 						game_screen.button_mod.draw_click_game(ui, &self.tx_outgoing);
@@ -173,17 +202,14 @@ impl eframe::App for MyTap {
         if let Screen::LoginView(login_page) = &mut self.screen {
             login_page.toasts.show(ctx);
 
-            if login_page.waiting_res {
+			if login_page.waiting_res {
                 match self.rx_incoming.try_recv() {
                     Ok(ServerMessage::Ok(_)) => {
                         login_page.waiting_res = false;
                         login_page.toasts.success("Login successful".to_string());
                         self.tx_outgoing.send("LOOK".to_string()).unwrap();
-						transition = Some(Screen::GameView(GameScreen {
-							current_room: StateRoom::Room1, // default room
-							button_mod: ComandeButton::macthing_action(),
-						}));
-                    }
+						transition = Some(Screen::Loading_mod(90));
+						}
                     Ok(ServerMessage::Err { code: 500, message }) => {
                         login_page.toasts.error(message);
                         login_page.waiting_res = false;
@@ -192,10 +218,21 @@ impl eframe::App for MyTap {
                 }
             }
         }
+
+		if let Screen::Loading_mod(load_mod) = &mut self.screen {
+			if *load_mod == 0 {
+				transition = Some(Screen::GameView(GameScreen {
+					current_room: StateRoom::Room1,
+					button_mod: ComandeButton::macthing_action(),
+				}));
+			}
+		}
+
 		if let Screen::GameView(game_screen) = &mut self.screen {
 				while let Ok(msg) = self.rx_incoming.try_recv() {
 					match msg {
 						ServerMessage::Ok(reponse) => {
+							transition = Some(Screen::Loading_mod(90));
 							if reponse.contains("loc.tavern") {
 								game_screen.current_room = StateRoom::Room1;
 							}

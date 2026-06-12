@@ -17,13 +17,23 @@ impl ComandeButton {
 	}
 
 	fn click_button(ui: &mut egui::Ui, label: &str) -> bool {
-		ui.button(label).clicked()
+		ui.add(
+			egui::Button::new(egui::RichText::new(label)
+			.size(16.5_f32)
+			.color(egui::Color32::from_rgb(205, 214, 244))
+		)
+
+		.min_size(egui::Vec2::new(95.0, 45.0))
+			.corner_radius(egui::CornerRadius::same(18_u8))
+			.fill(egui::Color32::from_rgb(49, 50, 68))
+			.stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(114, 135, 253)))
+		).clicked()
 	}
 
 	pub fn draw_click_game(&mut self, ui: &mut egui::Ui, tx_outcomming: &std::sync::mpsc::Sender<String>) {
 		let rect_screen = ui.max_rect();
-		let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (30.0));
-		let rect_put = egui::Rect::from_center_size(pos_bottom, egui::Vec2::new(250.0, 40.0));
+		let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (60.0));
+		let rect_put = egui::Rect::from_center_size(pos_bottom, egui::Vec2::new(300.0, 40.0));
 
 		match self.current_action.clone() {
 			None => {
