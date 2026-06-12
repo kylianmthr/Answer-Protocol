@@ -1,4 +1,4 @@
-mod window;
+mod app;
 mod game_mod {
 	pub mod state_mod;
 	pub mod room_1;
@@ -11,13 +11,13 @@ use std::io::{BufRead, BufReader, Write};
 use parser::{ServerMessage, parser};
 use std::net::TcpStream;
 use std::sync::mpsc;
-use window::MyTap;
+use app::MyTap;
 use std::thread;
 use std::env;
 mod parser;
 mod auth;
 
-use crate::window::font_style;
+use crate::app::font_style;
 
 fn main() -> Result<(), eframe::Error> {
     let args: Vec<String> = env::args().collect();
