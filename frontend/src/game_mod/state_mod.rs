@@ -16,8 +16,6 @@ pub enum StateRoom {
 
 
 pub struct GameScreen {
-	// pub username: String, // pour transition je te l'ai deplacer de l'ancien GamePage
-	// pub tx_outgoing: std::sync::mpsc::Sender<String>,
 	pub button_mod: ComandeButton,
 	pub current_room: StateRoom,
 }
