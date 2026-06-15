@@ -4,7 +4,6 @@ use crate::{
     action_game::ComandeButton,
     game_mod::state_mod::{GameScreen, StateRoom},
 };
-use egui::epaint::color;
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
 use egui_notify::Toasts;
 use std::sync::Arc;
@@ -308,7 +307,7 @@ impl eframe::App for MyTap {
                 let get_rect_screen = ui.max_rect(); // window_size
                 match &mut self.screen {
                     Screen::LoginView(login_page) => {
-                        let image_log_bg = egui::include_image!("../asset_manager/asset_up.jpeg");
+                        let image_log_bg = egui::include_image!("../asset_manager/login_page_v2.png");
                         egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
                         Self::draw_field_log(ui, login_page, &self.tx_outgoing.clone());
                     }
@@ -356,7 +355,7 @@ impl eframe::App for MyTap {
             }
         }
 
-        if let Screen::GameView(game_screen) = &mut self.screen {
+        if let Screen::GameView(_) = &mut self.screen {
             while let Ok(msg) = self.rx_incoming.try_recv() {
                 match msg {
                     // changement de salle (logique fichier 1)
@@ -365,6 +364,12 @@ impl eframe::App for MyTap {
                             Some(StateRoom::Room1)
                         } else if reponse.contains("loc.square") {
                             Some(StateRoom::Room2)
+						}
+						else if reponse.contains("loc.shop") {
+							Some(StateRoom::Room3)
+						}
+						else if reponse.contains("loc.forest") {
+							Some(StateRoom::Room4)
 						}
 						else {
 							None

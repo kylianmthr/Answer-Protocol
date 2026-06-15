@@ -4,6 +4,7 @@ mod game_mod {
 	pub mod room_1;
 	pub mod room_2;
 	pub mod room_3;
+	pub mod room_4;
 }
 
 mod action_game;
