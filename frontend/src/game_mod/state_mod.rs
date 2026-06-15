@@ -5,6 +5,7 @@ use crate::game_mod:: {
 	room_1,
 	room_2,
 	room_3,
+	room_4,
 };
 
 
@@ -12,6 +13,7 @@ pub enum StateRoom {
 	Room1,
 	Room2,
 	Room3,
+	Room4,
 }
 
 
@@ -26,6 +28,7 @@ impl GameScreen {
 			StateRoom::Room1 => room_1::draw(ui),
 			StateRoom::Room2 => room_2::draw(ui),
 			StateRoom::Room3 => room_3::draw(ui),
+			StateRoom::Room4 => room_4::draw(ui),
 		}
 	}
 }

@@ -86,8 +86,8 @@ impl ComandeButton {
 							tx_outcomming.send("MOVE east".to_string()).unwrap();
 							self.current_action = None;
 						}
-						if Self::click_button(ui, "OUEST") {
-							tx_outcomming.send("MOVE ouest".to_string()).unwrap();
+						if Self::click_button(ui, "WEST") {
+							tx_outcomming.send("MOVE west".to_string()).unwrap();
 							self.current_action = None;
 						}
 						if Self::click_button(ui, "BACK") {
