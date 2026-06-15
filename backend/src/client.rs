@@ -1,3 +1,4 @@
+use crate::broadcast::broadcast_global;
 use crate::chat::chat_room;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
@@ -110,6 +111,10 @@ async fn handle_commands(
                                     "ROOM" => {
                                         let message = args.strip_prefix("ROOM ").unwrap_or("").trim();
                                         chat_room(message.to_string(), username.clone(), Arc::clone(&state)).await;
+                                    },
+                                    "GLOBAL" => {
+                                        let message = args.strip_prefix("GLOBAL ").unwrap_or("").trim();
+                                        broadcast_global(format!("EVT GLOBAL CHAT {} {}", username, message).as_str(), Arc::clone(&state)).await;
                                     },
                                     _ => {
                                         write.write_all(b"ERR UNKNOWN_SCOPE\n").await.expect("Can't send unknown scope error");
