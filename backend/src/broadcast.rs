@@ -9,3 +9,11 @@ pub async fn broadcast_room(room_id: &str, message: &str, state: Arc<SharedState
         }
     });
 }
+
+pub async fn broadcast_global(message: &str, state: Arc<SharedState>) {
+    let players = state.players.lock().await;
+    println!("Broadcasting globally: {}", message);
+    players.iter().for_each(|(_, player)| {
+        let _ = player.tx.send(message.to_string());
+    });
+}
