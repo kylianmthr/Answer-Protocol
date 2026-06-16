@@ -6,6 +6,7 @@ use server::run_server;
 mod broadcast;
 mod chat;
 mod client;
+mod group;
 mod look;
 mod move_cmd;
 mod validate;
