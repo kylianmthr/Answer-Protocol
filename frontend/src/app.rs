@@ -4,18 +4,18 @@ use crate::{
     action_game::ComandeButton,
     game_mod::state_mod::{GameScreen, StateRoom},
 };
+use eframe::egui;
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
 use egui_notify::Toasts;
 use std::sync::Arc;
-use eframe::egui;
 
 pub struct MyTap {
-	screen: Screen,
-	pending_room: Option<StateRoom>,
+    screen: Screen,
+    pending_room: Option<StateRoom>,
     pub rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
     pub tx_outgoing: std::sync::mpsc::Sender<String>,
     chat_page: ChatPage,
-	toasts: Toasts,
+    toasts: Toasts,
 }
 
 // default start program into login page
@@ -31,9 +31,9 @@ impl MyTap {
             rx_incoming,
             tx_outgoing,
             toasts: Toasts::default(),
-			chat_page: ChatPage::default(),
-			pending_room: None
-		}
+            chat_page: ChatPage::default(),
+            pending_room: None,
+        }
     }
 }
 
@@ -248,8 +248,8 @@ impl MyTap {
 
     fn draw_scope_button(ui: &mut egui::Ui, chat_page: &mut ChatPage) {
         ui.horizontal(|ui| {
-			ui.visuals_mut().selection.bg_fill = egui::Color32::from_rgb(114, 135, 253);
-			let scopes = [Scope::Room, Scope::Group, Scope::Global];
+            ui.visuals_mut().selection.bg_fill = egui::Color32::from_rgb(114, 135, 253);
+            let scopes = [Scope::Room, Scope::Group, Scope::Global];
             for scope in &scopes {
                 let is_selected = chat_page.scope == *scope;
                 let button = ui.selectable_label(is_selected, scope.to_string());
@@ -266,33 +266,33 @@ impl eframe::App for MyTap {
     // modify (mut) once per frame
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
         // toats log permanent
-		self.toasts.show(ctx);
-		if matches!(self.screen, Screen::GameView(_)) {
+        self.toasts.show(ctx);
+        if matches!(self.screen, Screen::GameView(_)) {
             let tx = self.tx_outgoing.clone();
             egui::Panel::right("chat_panel")
                 .min_size(300.0)
-				.show_inside(ctx, |ui| {
-					ui.heading("Chat");
+                .show_inside(ctx, |ui| {
+                    ui.heading("Chat");
 
-					egui::Panel::bottom("chat_input").show_inside(ui, |ui| {
+                    egui::Panel::bottom("chat_input").show_inside(ui, |ui| {
                         Self::draw_chat(ui, &mut self.chat_page, &tx);
                     });
 
-					egui::Panel::top("scope_select").show_inside(ui, |ui| {
+                    egui::Panel::top("scope_select").show_inside(ui, |ui| {
                         Self::draw_scope_button(ui, &mut self.chat_page);
                     });
 
-					egui::CentralPanel::default().show_inside(ui, |ui| {
+                    egui::CentralPanel::default().show_inside(ui, |ui| {
                         egui::ScrollArea::vertical()
                             .auto_shrink([false, false])
                             .stick_to_bottom(true)
                             .show(ui, |ui| {
                                 for msg in &self.chat_page.messages {
                                     ui.horizontal(|ui| {
-										ui.label(format!("[{}]", msg.scope));
+                                        ui.label(format!("[{}]", msg.scope));
                                         ui.label(format!("{}:", msg.username));
                                         ui.label(&msg.content);
-									});
+                                    });
                                 }
                             });
                     });
@@ -307,7 +307,8 @@ impl eframe::App for MyTap {
                 let get_rect_screen = ui.max_rect(); // window_size
                 match &mut self.screen {
                     Screen::LoginView(login_page) => {
-                        let image_log_bg = egui::include_image!("../asset_manager/login_page_v2.png");
+                        let image_log_bg =
+                            egui::include_image!("../asset_manager/login_page_v2.png");
                         egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
                         Self::draw_field_log(ui, login_page, &self.tx_outgoing.clone());
                     }
@@ -327,7 +328,7 @@ impl eframe::App for MyTap {
 
         let mut transition: Option<Screen> = None;
 
-		if let Screen::LoginView(login_page) = &mut self.screen {
+        if let Screen::LoginView(login_page) = &mut self.screen {
             if login_page.waiting_res {
                 match self.rx_incoming.try_recv() {
                     Ok(ServerMessage::Ok(_)) => {
@@ -348,10 +349,10 @@ impl eframe::App for MyTap {
         if let Screen::LoadingMod(load_mod) = &mut self.screen {
             if *load_mod == 0 {
                 let room = self.pending_room.take().unwrap_or(StateRoom::Room1);
-				transition = Some(Screen::GameView(GameScreen {
+                transition = Some(Screen::GameView(GameScreen {
                     current_room: room,
                     button_mod: ComandeButton::macthing_action(),
-				}));
+                }));
             }
         }
 
@@ -364,20 +365,17 @@ impl eframe::App for MyTap {
                             Some(StateRoom::Room1)
                         } else if reponse.contains("loc.square") {
                             Some(StateRoom::Room2)
-						}
-						else if reponse.contains("loc.shop") {
-							Some(StateRoom::Room3)
-						}
-						else if reponse.contains("loc.forest") {
-							Some(StateRoom::Room4)
-						}
-						else {
-							None
-						};
-						if let Some(room) = next_room_tr {
-							transition = Some(Screen::LoadingMod(90));
-							self.pending_room = Some(room);
-						}
+                        } else if reponse.contains("loc.shop") {
+                            Some(StateRoom::Room3)
+                        } else if reponse.contains("loc.forest") {
+                            Some(StateRoom::Room4)
+                        } else {
+                            None
+                        };
+                        if let Some(room) = next_room_tr {
+                            transition = Some(Screen::LoadingMod(90));
+                            self.pending_room = Some(room);
+                        }
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
                     ServerMessage::Evt { evt_type, data } => match evt_type {
@@ -398,6 +396,19 @@ impl eframe::App for MyTap {
                                 username,
                                 content,
                             });
+                        }
+                        EventType::GroupChat => {
+                            let username = data.splitn(2, ' ').next().unwrap_or("").to_string();
+                            let content = data.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+                            self.chat_page.messages.push(Message {
+                                scope: Scope::Group,
+                                username,
+                                content,
+                            });
+                        }
+                        EventType::Invite => {
+                            self.toasts
+                                .info(format!("You have been invited to a group: {}", data));
                         }
                         _ => {}
                     },
