@@ -4,16 +4,18 @@ use crate::{
     action_game::ComandeButton,
     game_mod::state_mod::{GameScreen, StateRoom},
 };
-use eframe::egui;
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
 use egui_notify::Toasts;
 use std::sync::Arc;
+use eframe::egui;
 
 pub struct MyTap {
-    screen: Screen,
+	screen: Screen,
+	pending_room: Option<StateRoom>,
     pub rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
     pub tx_outgoing: std::sync::mpsc::Sender<String>,
     chat_page: ChatPage,
+	toasts: Toasts,
 }
 
 // default start program into login page
@@ -28,8 +30,10 @@ impl MyTap {
             screen: Screen::LoginView(LoginPage::new()),
             rx_incoming,
             tx_outgoing,
-            chat_page: ChatPage::default(),
-        }
+            toasts: Toasts::default(),
+			chat_page: ChatPage::default(),
+			pending_room: None
+		}
     }
 }
 
@@ -43,7 +47,6 @@ enum Screen {
 #[derive(Default)]
 struct LoginPage {
     username: String,
-    toasts: Toasts,
     waiting_res: bool,
 }
 
@@ -51,7 +54,6 @@ impl LoginPage {
     pub fn new() -> Self {
         Self {
             username: String::new(),
-            toasts: Toasts::default(),
             waiting_res: false,
         }
     }
@@ -246,7 +248,8 @@ impl MyTap {
 
     fn draw_scope_button(ui: &mut egui::Ui, chat_page: &mut ChatPage) {
         ui.horizontal(|ui| {
-            let scopes = [Scope::Room, Scope::Group, Scope::Global];
+			ui.visuals_mut().selection.bg_fill = egui::Color32::from_rgb(114, 135, 253);
+			let scopes = [Scope::Room, Scope::Group, Scope::Global];
             for scope in &scopes {
                 let is_selected = chat_page.scope == *scope;
                 let button = ui.selectable_label(is_selected, scope.to_string());
@@ -262,29 +265,34 @@ impl MyTap {
 impl eframe::App for MyTap {
     // modify (mut) once per frame
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
-        if matches!(self.screen, Screen::GameView(_)) {
+        // toats log permanent
+		self.toasts.show(ctx);
+		if matches!(self.screen, Screen::GameView(_)) {
             let tx = self.tx_outgoing.clone();
-            egui::SidePanel::right("chat_panel")
-                .min_width(300.0)
-                .show_inside(ctx, |ui| {
-                    ui.heading("Chat");
-                    egui::TopBottomPanel::bottom("chat_input").show_inside(ui, |ui| {
+            egui::Panel::right("chat_panel")
+                .min_size(300.0)
+				.show_inside(ctx, |ui| {
+					ui.heading("Chat");
+
+					egui::Panel::bottom("chat_input").show_inside(ui, |ui| {
                         Self::draw_chat(ui, &mut self.chat_page, &tx);
                     });
-                    egui::TopBottomPanel::top("scope_select").show_inside(ui, |ui| {
+
+					egui::Panel::top("scope_select").show_inside(ui, |ui| {
                         Self::draw_scope_button(ui, &mut self.chat_page);
                     });
-                    egui::CentralPanel::default().show_inside(ui, |ui| {
+
+					egui::CentralPanel::default().show_inside(ui, |ui| {
                         egui::ScrollArea::vertical()
                             .auto_shrink([false, false])
                             .stick_to_bottom(true)
                             .show(ui, |ui| {
                                 for msg in &self.chat_page.messages {
                                     ui.horizontal(|ui| {
-                                        ui.label(format!("[{}]", msg.scope));
+										ui.label(format!("[{}]", msg.scope));
                                         ui.label(format!("{}:", msg.username));
                                         ui.label(&msg.content);
-                                    });
+									});
                                 }
                             });
                     });
@@ -299,7 +307,7 @@ impl eframe::App for MyTap {
                 let get_rect_screen = ui.max_rect(); // window_size
                 match &mut self.screen {
                     Screen::LoginView(login_page) => {
-                        let image_log_bg = egui::include_image!("../asset_manager/asset_up.jpeg");
+                        let image_log_bg = egui::include_image!("../asset_manager/login_page_v2.png");
                         egui::Image::new(image_log_bg).paint_at(ui, get_rect_screen);
                         Self::draw_field_log(ui, login_page, &self.tx_outgoing.clone());
                     }
@@ -319,19 +327,17 @@ impl eframe::App for MyTap {
 
         let mut transition: Option<Screen> = None;
 
-        if let Screen::LoginView(login_page) = &mut self.screen {
-            login_page.toasts.show(ctx);
-
+		if let Screen::LoginView(login_page) = &mut self.screen {
             if login_page.waiting_res {
                 match self.rx_incoming.try_recv() {
                     Ok(ServerMessage::Ok(_)) => {
                         login_page.waiting_res = false;
-                        login_page.toasts.success("Login successful".to_string());
+                        self.toasts.success("Login successful".to_string());
                         self.tx_outgoing.send("LOOK".to_string()).unwrap();
                         transition = Some(Screen::LoadingMod(90));
                     }
                     Ok(ServerMessage::Err { code: 500, message }) => {
-                        login_page.toasts.error(message);
+                        self.toasts.error(message);
                         login_page.waiting_res = false;
                     }
                     _ => {}
@@ -341,24 +347,37 @@ impl eframe::App for MyTap {
 
         if let Screen::LoadingMod(load_mod) = &mut self.screen {
             if *load_mod == 0 {
-                transition = Some(Screen::GameView(GameScreen {
-                    current_room: StateRoom::Room1,
+                let room = self.pending_room.take().unwrap_or(StateRoom::Room1);
+				transition = Some(Screen::GameView(GameScreen {
+                    current_room: room,
                     button_mod: ComandeButton::macthing_action(),
-                }));
+				}));
             }
         }
 
-        if let Screen::GameView(game_screen) = &mut self.screen {
+        if let Screen::GameView(_) = &mut self.screen {
             while let Ok(msg) = self.rx_incoming.try_recv() {
                 match msg {
                     // changement de salle (logique fichier 1)
                     ServerMessage::Ok(reponse) => {
-                        transition = Some(Screen::LoadingMod(90));
-                        if reponse.contains("loc.tavern") {
-                            game_screen.current_room = StateRoom::Room1;
+                        let next_room_tr = if reponse.contains("loc.tavern") {
+                            Some(StateRoom::Room1)
                         } else if reponse.contains("loc.square") {
-                            game_screen.current_room = StateRoom::Room2;
-                        }
+                            Some(StateRoom::Room2)
+						}
+						else if reponse.contains("loc.shop") {
+							Some(StateRoom::Room3)
+						}
+						else if reponse.contains("loc.forest") {
+							Some(StateRoom::Room4)
+						}
+						else {
+							None
+						};
+						if let Some(room) = next_room_tr {
+							transition = Some(Screen::LoadingMod(90));
+							self.pending_room = Some(room);
+						}
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
                     ServerMessage::Evt { evt_type, data } => match evt_type {
