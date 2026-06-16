@@ -82,6 +82,9 @@ pub async fn group_accept(
             for player in &group.members {
                 let _ = player.tx.send(format!("EVT GROUP JOIN {}", player_name));
             }
+            player
+                .invitations
+                .retain(|invitation| invitation.id != group_name);
             Ok(())
         } else {
             Err("PLAYER_NOT_FOUND".to_string())
