@@ -33,7 +33,7 @@ impl MyTap {
             toasts: Toasts::default(),
             chat_page: ChatPage::default(),
             pending_room: None,
-        }
+		}
     }
 }
 
@@ -81,6 +81,7 @@ struct Message {
     scope: Scope,
     username: String,
     content: String,
+	// show_cmd_chat: bool,
 }
 
 #[derive(Default)]
@@ -88,6 +89,7 @@ struct ChatPage {
     scope: Scope,
     messages: Vec<Message>,
     message_input: String,
+	show_panel_cmd: bool,
 }
 
 // cas ou tu veux ajouter des font cas specifique
@@ -203,6 +205,21 @@ impl MyTap {
         });
     }
 
+	fn chat_cmd_panel(ui: &mut egui::Ui, chat_page: &mut ChatPage, tx: &std::sync::mpsc::Sender<String>) {
+		let input = chat_page.message_input.as_str();
+		let cmd_autocompletion= ["/group invite", "/group join", "/group create"];
+
+		egui::Frame::popup(ui.style()).show(ui, |ui| {
+			for cmd in cmd_autocompletion {
+				if ui.button(cmd).clicked() {
+					selected = Some(cmd);
+				}
+			}
+		});
+		// chat_page.message_input = cmd.to_string();
+		// 			chat_page.show_panel_cmd = false;
+	}
+
     fn draw_chat(
         ui: &mut egui::Ui,
         chat_page: &mut ChatPage,
@@ -222,7 +239,10 @@ impl MyTap {
                 style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
                 style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
 
-                let res = ui.add(
+                if chat_page.message_input.starts_with("/") {
+					Self::chat_cmd_panel(ui, chat_page, tx);
+				}
+				let res = ui.add(
                     egui::TextEdit::singleline(&mut chat_page.message_input)
                         .hint_text("Type your message here...")
                         .font(egui::FontId::new(
