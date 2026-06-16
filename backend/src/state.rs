@@ -16,6 +16,8 @@ pub struct Player {
     pub inventory: Vec<String>,
     pub tx: mpsc::UnboundedSender<String>,
     pub room: String,
+    pub invitations: Vec<Group>,
+    pub group: Option<String>,
 }
 
 impl Player {
@@ -30,9 +32,34 @@ impl Player {
             inventory: Vec::new(),
             tx,
             room: room.to_string(),
+            invitations: Vec::new(),
+            group: None,
         };
         player.validate()?;
         Ok(player)
+    }
+}
+
+#[derive(Clone, Validate)]
+pub struct Group {
+    pub id: String,
+    pub members: Vec<Player>,
+}
+
+impl Group {
+    pub fn new(id: &str) -> Self {
+        Self {
+            id: id.to_string(),
+            members: Vec::new(),
+        }
+    }
+
+    pub fn add_member(&mut self, player: Player) {
+        self.members.push(player);
+    }
+
+    pub fn remove_member(&mut self, player_name: &str) {
+        self.members.retain(|member| member.name != player_name);
     }
 }
 
@@ -122,6 +149,7 @@ pub struct SharedState {
     pub players: Mutex<HashMap<String, Player>>,
     pub world_data: Mutex<WorldData>,
     pub world_state: Mutex<WorldState>,
+    pub groups: Mutex<HashMap<String, Group>>,
 }
 
 impl WorldState {
@@ -163,6 +191,7 @@ impl SharedState {
             world_state: Mutex::new(WorldState::from_world_data(&WorldData::load_from_file(
                 &path,
             ))),
+            groups: Mutex::new(HashMap::new()),
         })
     }
 }

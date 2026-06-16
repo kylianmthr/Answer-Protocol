@@ -17,3 +17,12 @@ pub async fn broadcast_global(message: &str, state: Arc<SharedState>) {
         let _ = player.tx.send(message.to_string());
     });
 }
+
+pub async fn broadcast_group(group_id: &str, message: &str, state: Arc<SharedState>) {
+    let groups = state.groups.lock().await;
+    if let Some(group) = groups.get(group_id) {
+        group.members.iter().for_each(|member| {
+            let _ = member.tx.send(message.to_string());
+        });
+    }
+}

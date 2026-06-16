@@ -1,5 +1,9 @@
 use crate::broadcast::broadcast_global;
+use crate::broadcast::broadcast_group;
 use crate::chat::chat_room;
+use crate::group::group_accept;
+use crate::group::group_create;
+use crate::group::group_invite;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
 use crate::state::Player;
@@ -116,6 +120,13 @@ async fn handle_commands(
                                         let message = args.strip_prefix("GLOBAL ").unwrap_or("").trim();
                                         broadcast_global(format!("EVT GLOBAL CHAT {} {}", username, message).as_str(), Arc::clone(&state)).await;
                                     },
+                                    "GROUP" => {
+                                        let message = args.strip_prefix("GROUP ").unwrap_or("").trim();
+                                        let players = state.players.lock().await;
+                                        let group_id = players.get(&username).and_then(|player| player.group.clone());
+                                        drop(players);
+                                        broadcast_group(group_id.as_deref().unwrap_or(""), format!("EVT GROUP CHAT {} {}", username, message).as_str(), Arc::clone(&state)).await;
+                                    },
                                     _ => {
                                         write.write_all(b"ERR UNKNOWN_SCOPE\n").await.expect("Can't send unknown scope error");
                                     }
@@ -123,6 +134,56 @@ async fn handle_commands(
                             },
                             "WHO" => {
                                 write.write_all(crate::who::who(username.clone(), Arc::clone(&state)).await.as_bytes()).await.expect("Can't send who response");
+                            },
+                            "GROUP" => {
+                                let arg = args.splitn(2, ' ').next().unwrap_or("");
+                                match arg {
+                                    "CREATE" => {
+                                        let group_name = args.strip_prefix("CREATE ").unwrap_or("").trim();
+                                        match group_create(group_name, username.clone().as_str(), Arc::clone(&state)).await {
+                                            Ok(_) => {
+                                                write.write_all(format!("OK group={}\n", group_name).as_bytes()).await.expect("Can't send group created response");
+                                            },
+                                            Err(e) => {
+                                                write.write_all(format!("ERR 500 {}\n", e).as_bytes()).await.expect("Can't send group creation error response");
+                                            }
+                                        }
+                                    },
+                                    "INVITE" => {
+                                        let players = state.players.lock().await;
+                                        let player_name = args.strip_prefix("INVITE ").unwrap_or("").trim();
+                                        let group_id = players.get(&username).and_then(|player| player.group.clone());
+                                        let Some(group_id) = group_id else {
+                                            write.write_all(b"ERR 401 NOT_IN_GROUP\n").await.expect("Can't send not in group error");
+                                            continue;
+                                        };
+                                        drop(players);
+                                        match group_invite(group_id.as_str(), player_name, username.clone().as_str(), Arc::clone(&state)).await {
+                                            Ok(_) => {
+                                                println!("{} invited {} to group {}", username, player_name, group_id);
+                                                write.write_all(b"OK\n").await.expect("Can't send group invite response");
+                                            },
+                                            Err(e) => {
+                                            println!("Error inviting {} to group {}: {}", player_name, group_id, e);
+                                                write.write_all(format!("ERR 500 {}\n", e).as_bytes()).await.expect("Can't send group invite error response");
+                                            }
+                                        }
+                                    },
+                                    "JOIN" => {
+                                        let group_name = args.strip_prefix("JOIN ").unwrap_or("").trim();
+                                        match group_accept(group_name, username.clone().as_str(), Arc::clone(&state)).await {
+                                            Ok(_) => {
+                                                write.write_all(format!("OK group={}\n", group_name).as_bytes()).await.expect("Can't send group join response");
+                                            },
+                                            Err(e) => {
+                                                write.write_all(format!("ERR 500 {}\n", e).as_bytes()).await.expect("Can't send group join error response");
+                                            }
+                                        }
+                                    },
+                                    _ => {
+                                        write.write_all(b"ERR UNKNOWN_GROUP_COMMAND\n").await.expect("Can't send unknown group command error");
+                                    }
+                                }
                             },
                             _ => {
                                 println!("Unknown command from {}: {}", username, command);
