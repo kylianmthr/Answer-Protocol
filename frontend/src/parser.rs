@@ -31,6 +31,7 @@ enum UserError {
 }
 
 pub fn parser(msg: &str) -> Result<ServerMessage, &str> {
+    println!("Parsing message: {}", msg);
     let mut parts = msg.splitn(2, ' ');
     let status = parts.next().unwrap_or("");
     let args = parts.next().unwrap_or("").trim();
