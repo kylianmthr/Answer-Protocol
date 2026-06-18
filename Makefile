@@ -1,9 +1,12 @@
-PORT = 2000
 CARGO_EXEC = cargo run
 MAP_PATH = test.yaml
+PORT = 2000
 
 all:
-	cd backend && cargo run $(PORT) $(MAP_PATH) & cd frontend && cargo run $(PORT) & wait
+	@trap 'kill 0' EXIT INT TERM; \
+	cd backend && cargo run $(PORT) $(MAP_PATH) & \
+	cd frontend && cargo run $(PORT) \
+	& wait
 
 serveur:
 	cd backend && $(CARGO_EXEC) $(PORT) $(MAP_PATH)
@@ -15,7 +18,8 @@ client-cli:
 	nc localhost $(PORT)
 
 fclean:
-	rm -rf backend/target frontend/target || true
+	rm -rf backend/target \
+	frontend/target || true
 
 re: fclean all
 

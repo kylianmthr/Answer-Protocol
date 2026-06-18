@@ -2,7 +2,7 @@ use crate::parser::EventType;
 use crate::parser::ServerMessage;
 use crate::{
     action_game::ComandeButton,
-    game_mod::state_mod::{GameScreen, StateRoom},
+    room::state_mod::{GameScreen, StateRoom},
 };
 use eframe::egui;
 use egui::{FontData, FontDefinitions, FontFamily, Ui};

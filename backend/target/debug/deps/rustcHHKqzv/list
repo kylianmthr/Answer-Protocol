@@ -1,0 +1,8 @@
+{
+  global:
+    __rustc_proc_macro_decls_30b33501ae6d3d8c__;
+    rust_metadata_zerovec_derive_30b33501ae6d3d8c;
+
+  local:
+    *;
+};

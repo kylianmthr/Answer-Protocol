@@ -1,7 +1,7 @@
 use eframe::egui;
 use crate::action_game::ComandeButton;
 
-use crate::game_mod:: {
+use crate::room:: {
 	room_1,
 	room_2,
 	room_3,

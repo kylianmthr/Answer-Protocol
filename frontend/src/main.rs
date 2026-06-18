@@ -1,5 +1,5 @@
 mod app;
-mod game_mod {
+mod room {
 	pub mod state_mod;
 	pub mod room_1;
 	pub mod room_2;
