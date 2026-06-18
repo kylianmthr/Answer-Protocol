@@ -1,10 +1,14 @@
 mod app;
-mod game_mod {
-    pub mod room_1;
-    pub mod room_2;
-    pub mod room_3;
-    pub mod room_4;
-    pub mod state_mod;
+mod room {
+	pub mod state_mod;
+	pub mod room_1;
+	pub mod room_2;
+	pub mod room_3;
+	pub mod room_4;
+	pub mod room_5;
+	pub mod room_6;
+	pub mod room_7;
+	pub mod room_8;
 }
 
 mod action_game;

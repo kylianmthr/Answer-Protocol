@@ -8,7 +8,7 @@ all:
 	cd frontend && cargo run $(PORT) \
 	& wait
 
-server:
+serveur:
 	cd backend && $(CARGO_EXEC) $(PORT) $(MAP_PATH)
 
 client-gui:
@@ -18,9 +18,9 @@ client-cli:
 	nc localhost $(PORT)
 
 fclean:
-	rm -rf backend/target \
+	rm -rf backend/target || true \
 	frontend/target || true
 
 re: fclean all
 
-.PHONY: all install server client-gui fclean re
+.PHONY: all install serveur client-gui fclean re

@@ -1,37 +1,174 @@
 world:
+  # Correspond à StateRoom::Room1 dans votre code
   initial_room: "loc.tavern"
   rooms:
-    loc.square:
-      name: "Village Square"
-      description: "A bustling square with cobblestone paths."
-      exits:
-        north: "loc.tavern"
-        #east: "loc.shop"
-      items: ["item.herbs"]
-      npcs: ["npc.guard"]
+
+    # StateRoom::Room1
     loc.tavern:
-      name: "The Prancing Pony"
-      description: "A cozy tavern filled with warmth and laughter."
+      name: "Le Chaudron Baveur"
+      description: "Une taverne sombre mais accueillante où les tasses de hydromel flottent d'une table à l'autre."
       exits:
         south: "loc.square"
-      items: ["item.flocondavoine"]
+      items: ["item.flocondavoine", "item.bierebeurre"]
+      npcs: ["npc.taverniere"]
+
+    # StateRoom::Room2
+    loc.square:
+      name: "Place du Vieux Grimoire"
+      description: "Le centre du village, pavé de pierres runiques. Une statue d'un grand mage trône au centre."
+      exits:
+        north: "loc.tavern"
+        east: "loc.shop"
+        south: "loc.forest"
+        west: "loc.library"
+      items: ["item.herbs"]
+      npcs: ["npc.guard"]
+
+    # StateRoom::Room3
+    loc.shop:
+      name: "Baguettes & Sortilèges"
+      description: "Une boutique poussiéreuse remplie de boîtes fines empilées jusqu'au plafond."
+      exits:
+        west: "loc.square"
+      items: ["item.wand", "item.cauldron"]
+      npcs: ["npc.marchand"]
+
+    # StateRoom::Room4
+    loc.forest:
+      name: "Forêt des Murmures"
+      description: "Les arbres semblent vous observer et l'air vibre d'une magie ancienne."
+      exits:
+        north: "loc.square"
+        east: "loc.swamp"
+      items: ["item.wood"]
+      npcs: ["npc.dryade"]
+
+    # --- Les 4 nouvelles pièces pour arriver à 8 ---
+
+    # StateRoom::Room5 (Logique de dessin suivante)
+    loc.library:
+      name: "Bibliothèque Interdite"
+      description: "Des milliers de livres anciens enchaînés aux étagères. On entend des chuchotements s'échapper des pages."
+      exits:
+        east: "loc.square"
+        north: "loc.observatory"
+      items: ["item.grimoire"]
       npcs: []
+
+    # StateRoom::Room6
+    loc.observatory:
+      name: "Tour de l'Astral"
+      description: "Le sommet de la tour de l'académie. Un immense télescope pointe vers des constellations mobiles."
+      exits:
+        south: "loc.library"
+      items: ["item.cristal"]
+      npcs: ["npc.astrologue"]
+
+    # StateRoom::Room7
+    loc.swamp:
+      name: "Marais Putride"
+      description: "Une zone marécageuse d'où s'échappent des bulles de gaz magique. Idéal pour trouver des ingrédients rares."
+      exits:
+        west: "loc.forest"
+        south: "loc.crypt"
+      items: ["item.toad"]
+      npcs: []
+
+    # StateRoom::Room8
+    loc.crypt:
+      name: "Crypte des Anciens"
+      description: "Un souterrain glacial sous le marais, éclairé par des torches de feu follet bleu."
+      exits:
+        north: "loc.swamp"
+      items: ["item.bones", "item.amulet"]
+      npcs: ["npc.necromancien"]
 
   items:
     item.herbs:
-      name: "Herbs"
-      description: "Some fresh herbs."
+      name: "Herbes Médicinales"
+      description: "Des herbes fraîches pour préparer des potions de soin."
       obtainable: true
     item.flocondavoine:
-      name: "Flacon d'avoine"
-      description: "C'est pas bon mais c'est solide"
+      name: "Flocons d'avoine enchantés"
+      description: "C'est pas bon mais c'est solide, et ça brille un peu."
+      obtainable: true
+    item.bierebeurre:
+      name: "Bière au beurre"
+      description: "Chaude, mousseuse et réconfortante."
+      obtainable: true
+    item.wand:
+      name: "Baguette en bois de houx"
+      description: "Elle vibre légèrement dans votre main."
+      obtainable: true
+    item.cauldron:
+      name: "Chaudron en étain"
+      description: "Taille standard 2. Indispensable pour la botanique."
+      obtainable: true
+    item.wood:
+      name: "Bois de Wychwood"
+      description: "Un bois qui résiste au feu magique."
+      obtainable: true
+    item.grimoire:
+      name: "Grimoire de Lévitation"
+      description: "Un livre lourd traitant des sorts de déplacement."
+      obtainable: true
+    item.cristal:
+      name: "Cristal de Voyance"
+      description: "Une pierre polie qui permet de voir des fragments du futur."
+      obtainable: true
+    item.toad:
+      name: "Crapaud à pustules"
+      description: "Un ingrédient de potion ragoûtant mais nécessaire."
+      obtainable: true
+    item.bones:
+      name: "Os de Dragon"
+      description: "Anciens et imprégnés de magie de feu."
+      obtainable: true
+    item.amulet:
+      name: "Amulette de Protection"
+      description: "Protège contre les malédictions mineures."
       obtainable: true
 
   npcs:
     npc.guard:
-      name: "Village Guard"
-      description: "A stern-looking guard."
-      dialogue: ["Stay safe, traveler.", "The roads can be dangerous."]
-      hp: 50
+      name: "Garde de l'Académie"
+      description: "Un garde portant une armure gravée de runes de protection."
+      dialogue: ["Veuillez présenter votre insigne d'apprenti.", "Pas de duels sur la place publique !"]
+      hp: 100
       hostile: false
       room: "loc.square"
+    npc.taverniere:
+      name: "Mère Hubbarde"
+      description: "Une sorcière rondelette qui gère la taverne d'une main de maître (et d'une baguette)."
+      dialogue: ["Installez-vous près du feu.", "Le spécial du jour est le ragoût de triton."]
+      hp: 80
+      hostile: false
+      room: "loc.tavern"
+    npc.marchand:
+      name: "Ollivander local"
+      description: "Un vieil homme aux yeux vifs qui semble tout savoir sur vous."
+      dialogue: ["C'est la baguette qui choisit son sorcier, rappelez-vous.", "Besoin de fournitures pour les cours ?"]
+      hp: 60
+      hostile: false
+      room: "loc.shop"
+    npc.dryade:
+      name: "Elowen la Dryade"
+      description: "Une créature sylvestre dont la peau ressemble à de l'écorce."
+      dialogue: ["La forêt se souvient de ceux qui la respectent.", "Ne cueillez pas les herbes bleues."]
+      hp: 100
+      hostile: false
+      room: "loc.forest"
+    npc.astrologue:
+      name: "Professeur Septima"
+      description: "Toujours la tête dans les étoiles, littéralement."
+      dialogue: ["Les astres prédisent une grande perturbation.", "Regardez l'alignement de Jupiter."]
+      hp: 70
+      hostile: false
+      room: "loc.observatory"
+    npc.necromancien:
+      name: "Malakor le Banni"
+      description: "Un mage sombre pratiquant des arts interdits."
+      dialogue: ["Que cherchez-vous dans mes domaines, mortel ?", "La mort n'est qu'un début."]
+      hp: 100
+      hostile: true
+      room: "loc.crypt"

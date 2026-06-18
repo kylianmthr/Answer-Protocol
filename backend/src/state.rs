@@ -137,6 +137,7 @@ pub struct RoomState {
     items: Vec<String>,
     npcs: Vec<String>,
     pub players: Vec<String>,
+	pub exits_rooms: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -163,6 +164,7 @@ impl WorldState {
                     items: room.items.clone(),
                     npcs: room.npcs.clone(),
                     players: Vec::new(),
+					exits_rooms: room.exits.keys().cloned().collect(),
                 },
             );
         }
