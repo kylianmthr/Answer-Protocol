@@ -2,7 +2,7 @@ use crate::parser::EventType;
 use crate::parser::ServerMessage;
 use crate::{
     action_game::ComandeButton,
-    game_mod::state_mod::{GameScreen, StateRoom},
+    room::state_mod::{GameScreen, StateRoom},
 };
 use eframe::egui;
 use egui::{FontData, FontDefinitions, FontFamily, Ui};
@@ -14,8 +14,9 @@ pub struct MyTap {
     pending_room: Option<StateRoom>,
     pub rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
     pub tx_outgoing: std::sync::mpsc::Sender<String>,
-    chat_page: ChatPage,
+	chat_page: ChatPage,
     toasts: Toasts,
+	state_exits: Vec<String>,
 }
 
 // default start program into login page
@@ -33,15 +34,16 @@ impl MyTap {
             toasts: Toasts::default(),
             chat_page: ChatPage::default(),
             pending_room: None,
-        }
+			state_exits: Vec::new(),
+		}
     }
 }
 
 // mult screen manager
 enum Screen {
     LoginView(LoginPage),
-    LoadingMod(u8),
     GameView(GameScreen),
+    LoadingMod(u8),
 }
 
 #[derive(Default)]
@@ -88,6 +90,7 @@ struct ChatPage {
     scope: Scope,
     messages: Vec<Message>,
     message_input: String,
+	// show_panel_cmd: bool,
 }
 
 struct SlashCommand {
@@ -182,6 +185,25 @@ pub fn font_style(egui_ctx: &egui::Context) {
 }
 
 impl MyTap {
+	fn valid_directions(server_reponse: &str) -> Vec<String> {
+		let mut avaiable_pos = Vec::new();
+		let lower_response = server_reponse.to_lowercase();
+
+		if lower_response.contains("north") {
+			avaiable_pos.push("north".to_string());
+		}
+		if lower_response.contains("south") {
+			avaiable_pos.push("south".to_string());
+		}
+		if lower_response.contains("east") {
+			avaiable_pos.push("east".to_string());
+		}
+		if lower_response.contains("west") {
+			avaiable_pos.push("west".to_string());
+		}
+		return avaiable_pos; // add pos vec ex: north false south = ["south"]
+	}
+
     fn loading_animate(ui: &mut egui::Ui) {
         let get_rect = ui.max_rect();
         ui.painter()
@@ -262,6 +284,37 @@ impl MyTap {
         tx: &std::sync::mpsc::Sender<String>,
     ) {
         ui.vertical_centered(|ui| {
+            ui.scope(|ui| {
+                let style_field = ui.style_mut();
+                let rounding_field = egui::CornerRadius::same(10_u8);
+
+                style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
+                style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
+
+                style_field.visuals.widgets.active.corner_radius = rounding_field;
+                style_field.visuals.widgets.hovered.corner_radius = rounding_field;
+                style_field.visuals.widgets.inactive.corner_radius = rounding_field;
+                style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
+                style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
+
+				let res = ui.add(
+                    egui::TextEdit::singleline(&mut chat_page.message_input)
+                        .hint_text("Type your message here...")
+                        .font(egui::FontId::new(
+                            20.0_f32,
+                            egui::FontFamily::Name("undertale_font".into()),
+                        )),
+                );
+
+                if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    if !chat_page.message_input.trim().is_empty() {
+                        // Send the message to the server
+                        tx.send(format!(
+                            "CHAT {} {}",
+                            chat_page.scope, chat_page.message_input
+                        ))
+                        .unwrap();
+                        chat_page.message_input.clear();
             ui.vertical_centered(|ui| {
                 ui.scope(|ui| {
                     if chat_page.message_input.starts_with('/') {
@@ -404,7 +457,7 @@ impl eframe::App for MyTap {
                         game_screen.draw_room(ui);
                         game_screen
                             .button_mod
-                            .draw_click_game(ui, &self.tx_outgoing);
+                            .draw_click_game(ui, &self.tx_outgoing, &self.state_exits);
                     }
                 };
             });
@@ -441,10 +494,13 @@ impl eframe::App for MyTap {
 
         if let Screen::GameView(_) = &mut self.screen {
             while let Ok(msg) = self.rx_incoming.try_recv() {
-                match msg {
-                    // changement de salle (logique fichier 1)
-                    ServerMessage::Ok(res) => {
-                        let next_room_tr = if res.contains("loc.tavern") {
+				match msg {
+					// changement de salle (logique fichier 1)
+                    ServerMessage::Ok(reponse) => {
+						let valid_pos = Self::valid_directions(&reponse);
+						self.state_exits = valid_pos;
+
+						let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
                         } else if res.contains("loc.square") {
                             Some(StateRoom::Room2)
@@ -452,12 +508,25 @@ impl eframe::App for MyTap {
                             Some(StateRoom::Room3)
                         } else if res.contains("loc.forest") {
                             Some(StateRoom::Room4)
-                        } else {
+                        } else if reponse.contains("loc.library") {
+							Some(StateRoom::Room5)
+						}
+						else if reponse.contains("loc.observatory") {
+							Some(StateRoom::Room6)
+						}
+						else if reponse.contains("loc.swamp") {
+							Some(StateRoom::Room7)
+						}
+						else if reponse.contains("loc.crypt") {
+							Some(StateRoom::Room8)
+						}
+						else {
                             None
                         };
-                        if let Some(room) = next_room_tr {
+
+						if let Some(room) = next_room_tr {
                             transition = Some(Screen::LoadingMod(90));
-                            self.pending_room = Some(room);
+							self.pending_room = Some(room);
                         }
                         if res.contains("group=") {
                             self.toasts.success(format!("Group created: {}", res));

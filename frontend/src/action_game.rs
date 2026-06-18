@@ -1,3 +1,4 @@
+
 #[derive(Clone)]
 pub enum StateAction {
 	INVENTORY,
@@ -5,6 +6,7 @@ pub enum StateAction {
 	MOVE,
 	LOOK,
 	TALK,
+	QUEST,
 	QUIT,
 }
 
@@ -17,8 +19,9 @@ impl ComandeButton {
 		Self {current_action: None}
 	}
 
-	fn click_button(ui: &mut egui::Ui, label: &str) -> bool {
-		ui.add(
+	fn click_button(ui: &mut egui::Ui, label: &str, good_pos: bool) -> bool {
+		ui.add_enabled(
+			good_pos,
 			egui::Button::new(egui::RichText::new(label)
 			.size(16.5_f32)
 			.color(egui::Color32::from_rgb(205, 214, 244))
@@ -31,7 +34,7 @@ impl ComandeButton {
 		).clicked()
 	}
 
-	pub fn draw_click_game(&mut self, ui: &mut egui::Ui, tx_outcomming: &std::sync::mpsc::Sender<String>) {
+	pub fn draw_click_game(&mut self, ui: &mut egui::Ui, tx_outcomming: &std::sync::mpsc::Sender<String>, avaiable_vecpos: &[String]) {
 		let rect_screen = ui.max_rect();
 		let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (60.0));
 		let pos_top = egui::pos2(rect_screen.min.x + 10.0, rect_screen.min.y + 10.0);
@@ -44,53 +47,60 @@ impl ComandeButton {
 				// menu princpipal
 				ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
 					ui.horizontal(|ui| {
-						if Self::click_button(ui, "MOVE") {
+						if Self::click_button(ui, "MOVE", true) {
 							self.current_action = Some(StateAction::MOVE);
 						}
-						if Self::click_button(ui, "ATTACK") {
+						if Self::click_button(ui, "ATTACK", true) {
 							self.current_action = Some(StateAction::ATTACK);
 						}
-						if Self::click_button(ui, "LOOK") {
+						if Self::click_button(ui, "LOOK", true) {
 							self.current_action = Some(StateAction::LOOK);
 						}
-						if Self::click_button(ui, "TALK") {
+						if Self::click_button(ui, "TALK", true) {
 							self.current_action = Some(StateAction::TALK);
 						}
-						if Self::click_button(ui, "INVENTORY") {
+						if Self::click_button(ui, "INVENTORY", true) {
 							self.current_action = Some(StateAction::INVENTORY);
+						}
+						if Self::click_button(ui, "QUEST", true) {
+							self.current_action = Some(StateAction::QUEST);
 						}
 					}).response
 				});
 				ui.put(rect_put_top, |ui: &mut egui::Ui| {
 					ui.horizontal(|ui| {
-						if Self::click_button(ui, "QUIT") {
+						if Self::click_button(ui, "QUIT", true) {
 							self.current_action = Some(StateAction::QUIT);
-							// ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
 						}
 					}).response
 				});
 			}
 			// sous munu 1
 			Some(StateAction::MOVE) => {
-					ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
+				let go_north = avaiable_vecpos.contains(&"north".to_string());
+				let go_south = avaiable_vecpos.contains(&"south".to_string());
+				let go_east = avaiable_vecpos.contains(&"east".to_string());
+				let go_west = avaiable_vecpos.contains(&"west".to_string());
+				
+				ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
 						ui.horizontal(|ui| {
-						if Self::click_button(ui, "NORTH") {
+						if Self::click_button(ui, "NORTH", go_north) {
 							tx_outcomming.send("MOVE north".to_string()).unwrap();
 							self.current_action = None;
 						}
-						if Self::click_button(ui, "SOUTH") {
+						if Self::click_button(ui, "SOUTH", go_south) {
 							tx_outcomming.send("MOVE south".to_string()).unwrap();
 							self.current_action = None;
 						}
-						if Self::click_button(ui, "EAST") {
+						if Self::click_button(ui, "EAST", go_east) {
 							tx_outcomming.send("MOVE east".to_string()).unwrap();
 							self.current_action = None;
 						}
-						if Self::click_button(ui, "WEST") {
+						if Self::click_button(ui, "WEST", go_west) {
 							tx_outcomming.send("MOVE west".to_string()).unwrap();
 							self.current_action = None;
 						}
-						if Self::click_button(ui, "BACK") {
+						if Self::click_button(ui, "BACK", true) {
 							self.current_action = None;
 						}
 					}).response
@@ -100,7 +110,7 @@ impl ComandeButton {
 			ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
 				ui.horizontal(|ui| {
 					ui.label("invenvtory comming soon ...");
-					if Self::click_button(ui, "BACK") {
+					if Self::click_button(ui, "BACK", true) {
 						self.current_action = None;
 					}
 				}).response
@@ -116,6 +126,10 @@ impl ComandeButton {
 			}
 		Some(StateAction::TALK) => {
 			tx_outcomming.send("TALK".to_string()).unwrap();
+			self.current_action = None;
+		}
+		Some(StateAction::QUEST) => {
+			tx_outcomming.send("QUEST".to_string()).unwrap();
 			self.current_action = None;
 		}
 		Some(StateAction::QUIT) => {

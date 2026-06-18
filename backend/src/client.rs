@@ -35,7 +35,7 @@ async fn verify_authentication(
 ) -> Result<String, UserError> {
     let line = line.ok_or(UserError::InvalidRead)?;
     if let Some(username) = line.strip_prefix("CONNECT ") {
-        if username.trim().is_empty() {
+		if username.trim().is_empty() {
             return Err(UserError::InvalidUsername);
         }
         let players = state.players.lock().await;
