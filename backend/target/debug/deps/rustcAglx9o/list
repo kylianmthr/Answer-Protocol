@@ -1,8 +1,0 @@
-{
-  global:
-    __rustc_proc_macro_decls_d230e02a6d9ac403__;
-    rust_metadata_yoke_derive_d230e02a6d9ac403;
-
-  local:
-    *;
-};

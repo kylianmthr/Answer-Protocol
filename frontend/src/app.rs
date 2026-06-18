@@ -14,8 +14,9 @@ pub struct MyTap {
     pending_room: Option<StateRoom>,
     pub rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
     pub tx_outgoing: std::sync::mpsc::Sender<String>,
-    chat_page: ChatPage,
+	chat_page: ChatPage,
     toasts: Toasts,
+	state_exits: Vec<String>,
 }
 
 // default start program into login page
@@ -33,6 +34,7 @@ impl MyTap {
             toasts: Toasts::default(),
             chat_page: ChatPage::default(),
             pending_room: None,
+			state_exits: Vec::new(),
 		}
     }
 }
@@ -91,11 +93,6 @@ struct ChatPage {
 	// show_panel_cmd: bool,
 }
 
-// cas ou tu veux ajouter des font cas specifique
-// pub struct Font {
-// 	undertale_font: String,
-// }
-
 pub fn font_style(egui_ctx: &egui::Context) {
     let mut undertale_font = FontDefinitions::default();
 
@@ -129,6 +126,25 @@ pub fn font_style(egui_ctx: &egui::Context) {
 }
 
 impl MyTap {
+	fn valid_directions(server_reponse: &str) -> Vec<String> {
+		let mut avaiable_pos = Vec::new();
+		let lower_response = server_reponse.to_lowercase();
+
+		if lower_response.contains("north") {
+			avaiable_pos.push("north".to_string());
+		}
+		if lower_response.contains("south") {
+			avaiable_pos.push("south".to_string());
+		}
+		if lower_response.contains("east") {
+			avaiable_pos.push("east".to_string());
+		}
+		if lower_response.contains("west") {
+			avaiable_pos.push("west".to_string());
+		}
+		return avaiable_pos; // add pos vec ex: north false south = ["south"]
+	}
+
     fn loading_animate(ui: &mut egui::Ui) {
         let get_rect = ui.max_rect();
         ui.painter()
@@ -204,21 +220,6 @@ impl MyTap {
         });
     }
 
-	// fn chat_cmd_panel(ui: &mut egui::Ui, chat_page: &mut ChatPage, tx: &std::sync::mpsc::Sender<String>) {
-	// 	let input = chat_page.message_input.as_str();
-	// 	let cmd_autocompletion= ["/group invite", "/group join", "/group create"];
-
-	// 	egui::Frame::popup(ui.style()).show(ui, |ui| {
-	// 		for cmd in cmd_autocompletion {
-	// 			if ui.button(cmd).clicked() {
-	// 				selected = Some(cmd);
-	// 			}
-	// 		}
-	// 	});
-		// chat_page.message_input = cmd.to_string();
-		// 			chat_page.show_panel_cmd = false;
-	// }
-
     fn draw_chat(
         ui: &mut egui::Ui,
         chat_page: &mut ChatPage,
@@ -238,9 +239,6 @@ impl MyTap {
                 style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
                 style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
 
-                // if chat_page.message_input.starts_with("/") {
-				// 	Self::chat_cmd_panel(ui, chat_page, tx);
-				// }
 				let res = ui.add(
                     egui::TextEdit::singleline(&mut chat_page.message_input)
                         .hint_text("Type your message here...")
@@ -340,7 +338,7 @@ impl eframe::App for MyTap {
                         game_screen.draw_room(ui);
                         game_screen
                             .button_mod
-                            .draw_click_game(ui, &self.tx_outgoing);
+                            .draw_click_game(ui, &self.tx_outgoing, &self.state_exits);
                     }
                 };
             });
@@ -377,10 +375,13 @@ impl eframe::App for MyTap {
 
         if let Screen::GameView(_) = &mut self.screen {
             while let Ok(msg) = self.rx_incoming.try_recv() {
-                match msg {
-                    // changement de salle (logique fichier 1)
+				match msg {
+					// changement de salle (logique fichier 1)
                     ServerMessage::Ok(reponse) => {
-                        let next_room_tr = if reponse.contains("loc.tavern") {
+						let valid_pos = Self::valid_directions(&reponse);
+						self.state_exits = valid_pos;
+
+						let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
                         } else if reponse.contains("loc.square") {
                             Some(StateRoom::Room2)
@@ -388,12 +389,25 @@ impl eframe::App for MyTap {
                             Some(StateRoom::Room3)
                         } else if reponse.contains("loc.forest") {
                             Some(StateRoom::Room4)
-                        } else {
+                        } else if reponse.contains("loc.library") {
+							Some(StateRoom::Room5)
+						}
+						else if reponse.contains("loc.observatory") {
+							Some(StateRoom::Room6)
+						}
+						else if reponse.contains("loc.swamp") {
+							Some(StateRoom::Room7)
+						}
+						else if reponse.contains("loc.crypt") {
+							Some(StateRoom::Room8)
+						}
+						else {
                             None
                         };
-                        if let Some(room) = next_room_tr {
+
+						if let Some(room) = next_room_tr {
                             transition = Some(Screen::LoadingMod(90));
-                            self.pending_room = Some(room);
+							self.pending_room = Some(room);
                         }
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
