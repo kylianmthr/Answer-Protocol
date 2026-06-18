@@ -7,6 +7,8 @@ pub enum StateAction {
 	LOOK,
 	TALK,
 	QUEST,
+	TAKE,
+	DROP,
 	QUIT,
 }
 
@@ -36,7 +38,7 @@ impl ComandeButton {
 
 	pub fn draw_click_game(&mut self, ui: &mut egui::Ui, tx_outcomming: &std::sync::mpsc::Sender<String>, avaiable_vecpos: &[String]) {
 		let rect_screen = ui.max_rect();
-		let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (60.0));
+		let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (40.0));
 		let pos_top = egui::pos2(rect_screen.min.x + 10.0, rect_screen.min.y + 10.0);
 
 		let rect_put_bottom = egui::Rect::from_center_size(pos_bottom, egui::Vec2::new(300.0, 40.0));
@@ -64,6 +66,12 @@ impl ComandeButton {
 						}
 						if Self::click_button(ui, "QUEST", true) {
 							self.current_action = Some(StateAction::QUEST);
+						}
+						if Self::click_button(ui, "TAKE", true) {
+							self.current_action = Some(StateAction::TAKE);
+						}
+						if Self::click_button(ui, "DROP", true) {
+							self.current_action = Some(StateAction::DROP);
 						}
 					}).response
 				});
@@ -130,6 +138,14 @@ impl ComandeButton {
 		}
 		Some(StateAction::QUEST) => {
 			tx_outcomming.send("QUEST".to_string()).unwrap();
+			self.current_action = None;
+		}
+		Some(StateAction::TAKE) => {
+			tx_outcomming.send("TAKE".to_string()).unwrap();
+			self.current_action = None;
+		}
+		Some(StateAction::DROP) => {
+			tx_outcomming.send("DROP".to_string()).unwrap();
 			self.current_action = None;
 		}
 		Some(StateAction::QUIT) => {
