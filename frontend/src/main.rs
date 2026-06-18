@@ -5,6 +5,10 @@ mod room {
 	pub mod room_2;
 	pub mod room_3;
 	pub mod room_4;
+	pub mod room_5;
+	pub mod room_6;
+	pub mod room_7;
+	pub mod room_8;
 }
 
 mod action_game;

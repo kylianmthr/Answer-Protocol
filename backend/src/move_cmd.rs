@@ -1,4 +1,4 @@
-use crate::{broadcast::broadcast_room, state::SharedState};
+use crate::{broadcast::broadcast_room, look::look, state::SharedState};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -48,5 +48,6 @@ pub async fn move_cmd(
         state.clone(),
     )
     .await;
-    Ok(room.exits.get(direction.as_str()).unwrap().to_string())
+		let look_res = look(username.clone(), state.clone()).await;
+		Ok(look_res)
 }

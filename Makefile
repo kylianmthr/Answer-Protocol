@@ -18,7 +18,7 @@ client-cli:
 	nc localhost $(PORT)
 
 fclean:
-	rm -rf backend/target \
+	rm -rf backend/target || true \
 	frontend/target || true
 
 re: fclean all
