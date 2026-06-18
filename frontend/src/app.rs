@@ -283,38 +283,38 @@ impl MyTap {
         chat_page: &mut ChatPage,
         tx: &std::sync::mpsc::Sender<String>,
     ) {
-        ui.vertical_centered(|ui| {
-            ui.scope(|ui| {
-                let style_field = ui.style_mut();
-                let rounding_field = egui::CornerRadius::same(10_u8);
+        // ui.vertical_centered(|ui| {
+        //     ui.scope(|ui| {
+        //         let style_field = ui.style_mut();
+        //         let rounding_field = egui::CornerRadius::same(10_u8);
 
-                style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
-                style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
+        //         style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
+        //         style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
 
-                style_field.visuals.widgets.active.corner_radius = rounding_field;
-                style_field.visuals.widgets.hovered.corner_radius = rounding_field;
-                style_field.visuals.widgets.inactive.corner_radius = rounding_field;
-                style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
-                style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
+        //         style_field.visuals.widgets.active.corner_radius = rounding_field;
+        //         style_field.visuals.widgets.hovered.corner_radius = rounding_field;
+        //         style_field.visuals.widgets.inactive.corner_radius = rounding_field;
+        //         style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
+        //         style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
 
-				let res = ui.add(
-                    egui::TextEdit::singleline(&mut chat_page.message_input)
-                        .hint_text("Type your message here...")
-                        .font(egui::FontId::new(
-                            20.0_f32,
-                            egui::FontFamily::Name("undertale_font".into()),
-                        )),
-                );
+		// 		let res = ui.add(
+        //             egui::TextEdit::singleline(&mut chat_page.message_input)
+        //                 .hint_text("Type your message here...")
+        //                 .font(egui::FontId::new(
+        //                     20.0_f32,
+        //                     egui::FontFamily::Name("undertale_font".into()),
+        //                 )),
+        //         );
 
-                if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    if !chat_page.message_input.trim().is_empty() {
-                        // Send the message to the server
-                        tx.send(format!(
-                            "CHAT {} {}",
-                            chat_page.scope, chat_page.message_input
-                        ))
-                        .unwrap();
-                        chat_page.message_input.clear();
+        //         if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+        //             if !chat_page.message_input.trim().is_empty() {
+        //                 // Send the message to the server
+        //                 tx.send(format!(
+        //                     "CHAT {} {}",
+        //                     chat_page.scope, chat_page.message_input
+        //                 ))
+        //                 .unwrap();
+        //                 chat_page.message_input.clear();
             ui.vertical_centered(|ui| {
                 ui.scope(|ui| {
                     if chat_page.message_input.starts_with('/') {
@@ -379,8 +379,7 @@ impl MyTap {
                     }
                 });
             });
-        });
-    }
+	}
 
     fn draw_scope_button(ui: &mut egui::Ui, chat_page: &mut ChatPage) {
         ui.horizontal(|ui| {
@@ -502,11 +501,11 @@ impl eframe::App for MyTap {
 
 						let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
-                        } else if res.contains("loc.square") {
+                        } else if reponse.contains("loc.square") {
                             Some(StateRoom::Room2)
-                        } else if res.contains("loc.shop") {
+                        } else if reponse.contains("loc.shop") {
                             Some(StateRoom::Room3)
-                        } else if res.contains("loc.forest") {
+                        } else if reponse.contains("loc.forest") {
                             Some(StateRoom::Room4)
                         } else if reponse.contains("loc.library") {
 							Some(StateRoom::Room5)
@@ -528,8 +527,8 @@ impl eframe::App for MyTap {
                             transition = Some(Screen::LoadingMod(90));
 							self.pending_room = Some(room);
                         }
-                        if res.contains("group=") {
-                            self.toasts.success(format!("Group created: {}", res));
+                        if reponse.contains("group=") {
+                            self.toasts.success(format!("Group created: {}", reponse));
                         }
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
