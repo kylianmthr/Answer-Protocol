@@ -8,14 +8,12 @@ use crate::room:: {
 	room_4,
 };
 
-
 pub enum StateRoom {
 	Room1,
 	Room2,
 	Room3,
 	Room4,
 }
-
 
 pub struct GameScreen {
 	pub button_mod: ComandeButton,
