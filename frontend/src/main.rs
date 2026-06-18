@@ -12,15 +12,15 @@ mod room {
 }
 
 mod action_game;
-use std::io::{BufRead, BufReader, Write};
+use app::MyTap;
 use parser::{ServerMessage, parser};
+use std::env;
+use std::io::{BufRead, BufReader, Write};
 use std::net::TcpStream;
 use std::sync::mpsc;
-use app::MyTap;
 use std::thread;
-use std::env;
-mod parser;
 mod auth;
+mod parser;
 
 use crate::app::font_style;
 
@@ -69,7 +69,7 @@ fn main() -> Result<(), eframe::Error> {
         options_visualizeur,
         Box::new(move |cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
-			font_style(&cc.egui_ctx);
+            font_style(&cc.egui_ctx);
             Ok(Box::new(MyTap::new(rx_incoming, tx_outgoing)))
         }),
     )
