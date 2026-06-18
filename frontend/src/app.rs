@@ -497,7 +497,9 @@ impl eframe::App for MyTap {
 					// changement de salle (logique fichier 1)
                     ServerMessage::Ok(reponse) => {
 						let valid_pos = Self::valid_directions(&reponse);
-						self.state_exits = valid_pos;
+						if !valid_pos.is_empty() {
+							self.state_exits = valid_pos;
+						}
 
 						let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
