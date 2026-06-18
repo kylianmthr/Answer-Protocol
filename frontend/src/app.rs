@@ -498,6 +498,12 @@ impl eframe::App for MyTap {
                         EventType::Join => {
                             self.toasts.info(format!("Someone join the group {}", data));
                         }
+                        EventType::PresenceEnter => {
+                            self.toasts.info(format!("{} enter the room", data));
+                        }
+                        EventType::PresenceLeave => {
+                            self.toasts.info(format!("{} leave the room", data));
+                        }
                         _ => {}
                     },
 
