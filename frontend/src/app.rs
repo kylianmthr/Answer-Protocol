@@ -90,6 +90,60 @@ struct ChatPage {
     message_input: String,
 }
 
+struct SlashCommand {
+    pattern: &'static str,
+    protocol: &'static str,
+    takes_arg: bool,
+    hint: &'static str,
+}
+
+const SLASH_COMMANDS: &[SlashCommand] = &[
+    SlashCommand {
+        pattern: "/group create",
+        protocol: "GROUP CREATE",
+        takes_arg: true,
+        hint: "Create a group.",
+    },
+    SlashCommand {
+        pattern: "/group invite",
+        protocol: "GROUP INVITE",
+        takes_arg: true,
+        hint: "Invite someone in the current group.",
+    },
+    SlashCommand {
+        pattern: "/group join",
+        protocol: "GROUP JOIN",
+        takes_arg: true,
+        hint: "Join a group.",
+    },
+    SlashCommand {
+        pattern: "/group leave",
+        protocol: "GROUP LEAVE",
+        takes_arg: true,
+        hint: "Leave a group.",
+    },
+];
+
+fn matching_commands(input: &str) -> Vec<&'static SlashCommand> {
+    SLASH_COMMANDS
+        .iter()
+        .filter(|c| c.pattern.starts_with(input.trim_end()))
+        .collect()
+}
+
+fn resolve_command(input: &str) -> Option<String> {
+    for cmd in SLASH_COMMANDS {
+        if cmd.takes_arg {
+            if let Some(arg) = input.strip_prefix(&format!("{} ", cmd.pattern)) {
+                return Some(format!("{} {}", cmd.protocol, arg.trim()));
+            }
+        } else if input.trim() == cmd.pattern {
+            return Some(cmd.protocol.to_string());
+        }
+    }
+    None
+}
+
 // cas ou tu veux ajouter des font cas specifique
 // pub struct Font {
 // 	undertale_font: String,
@@ -202,46 +256,75 @@ impl MyTap {
             });
         });
     }
-
     fn draw_chat(
         ui: &mut egui::Ui,
         chat_page: &mut ChatPage,
         tx: &std::sync::mpsc::Sender<String>,
     ) {
         ui.vertical_centered(|ui| {
-            ui.scope(|ui| {
-                let style_field = ui.style_mut();
-                let rounding_field = egui::CornerRadius::same(10_u8);
-
-                style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
-                style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
-
-                style_field.visuals.widgets.active.corner_radius = rounding_field;
-                style_field.visuals.widgets.hovered.corner_radius = rounding_field;
-                style_field.visuals.widgets.inactive.corner_radius = rounding_field;
-                style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
-                style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
-
-                let res = ui.add(
-                    egui::TextEdit::singleline(&mut chat_page.message_input)
-                        .hint_text("Type your message here...")
-                        .font(egui::FontId::new(
-                            20.0_f32,
-                            egui::FontFamily::Name("undertale_font".into()),
-                        )),
-                );
-
-                if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    if !chat_page.message_input.trim().is_empty() {
-                        // Send the message to the server
-                        tx.send(format!(
-                            "CHAT {} {}",
-                            chat_page.scope, chat_page.message_input
-                        ))
-                        .unwrap();
-                        chat_page.message_input.clear();
+            ui.vertical_centered(|ui| {
+                ui.scope(|ui| {
+                    if chat_page.message_input.starts_with('/') {
+                        let suggestions = matching_commands(&chat_page.message_input);
+                        if !suggestions.is_empty() {
+                            ui.add_space(4.0);
+                            egui::Frame::new()
+                                .corner_radius(egui::CornerRadius::same(8_u8))
+                                .inner_margin(egui::Margin::same(6))
+                                .show(ui, |ui| {
+                                    for cmd in suggestions {
+                                        let label = format!("{}  —  {}", cmd.pattern, cmd.hint);
+                                        if ui.selectable_label(false, label).clicked() {
+                                            chat_page.message_input = if cmd.takes_arg {
+                                                format!("{} ", cmd.pattern)
+                                            } else {
+                                                cmd.pattern.to_string()
+                                            };
+                                        }
+                                    }
+                                });
+                        }
                     }
-                }
+                    let style_field = ui.style_mut();
+                    let rounding_field = egui::CornerRadius::same(10_u8);
+
+                    style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
+                    style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
+
+                    style_field.visuals.widgets.active.corner_radius = rounding_field;
+                    style_field.visuals.widgets.hovered.corner_radius = rounding_field;
+                    style_field.visuals.widgets.inactive.corner_radius = rounding_field;
+                    style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
+                    style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
+
+                    let res = ui.add(
+                        egui::TextEdit::singleline(&mut chat_page.message_input)
+                            .id_salt("chat_input")
+                            .hint_text("Type your message here...")
+                            .font(egui::FontId::new(
+                                20.0_f32,
+                                egui::FontFamily::Name("undertale_font".into()),
+                            )),
+                    );
+
+                    if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                        if !chat_page.message_input.trim().is_empty() {
+                            if let Some(protocol_cmd) = resolve_command(&chat_page.message_input) {
+                                tx.send(protocol_cmd).unwrap();
+                            } else if chat_page.message_input.starts_with('/') {
+                                // commande inconnue, idéalement un toast d'erreur ici
+                                // (faudrait threader `toasts` jusqu'à draw_chat si tu veux ce feedback)
+                            } else {
+                                tx.send(format!(
+                                    "CHAT {} {}",
+                                    chat_page.scope, chat_page.message_input
+                                ))
+                                .unwrap();
+                            }
+                            chat_page.message_input.clear();
+                        }
+                    }
+                });
             });
         });
     }
@@ -360,14 +443,14 @@ impl eframe::App for MyTap {
             while let Ok(msg) = self.rx_incoming.try_recv() {
                 match msg {
                     // changement de salle (logique fichier 1)
-                    ServerMessage::Ok(reponse) => {
-                        let next_room_tr = if reponse.contains("loc.tavern") {
+                    ServerMessage::Ok(res) => {
+                        let next_room_tr = if res.contains("loc.tavern") {
                             Some(StateRoom::Room1)
-                        } else if reponse.contains("loc.square") {
+                        } else if res.contains("loc.square") {
                             Some(StateRoom::Room2)
-                        } else if reponse.contains("loc.shop") {
+                        } else if res.contains("loc.shop") {
                             Some(StateRoom::Room3)
-                        } else if reponse.contains("loc.forest") {
+                        } else if res.contains("loc.forest") {
                             Some(StateRoom::Room4)
                         } else {
                             None
@@ -375,6 +458,9 @@ impl eframe::App for MyTap {
                         if let Some(room) = next_room_tr {
                             transition = Some(Screen::LoadingMod(90));
                             self.pending_room = Some(room);
+                        }
+                        if res.contains("group=") {
+                            self.toasts.success(format!("Group created: {}", res));
                         }
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
@@ -407,12 +493,17 @@ impl eframe::App for MyTap {
                             });
                         }
                         EventType::Invite => {
-                            self.toasts
-                                .info(format!("You have been invited to a group: {}", data));
+                            self.toasts.info(format!("Group invitation: {}", data));
+                        }
+                        EventType::Join => {
+                            self.toasts.info(format!("Someone join the group {}", data));
                         }
                         _ => {}
                     },
-                    _ => {}
+
+                    ServerMessage::Err { code, message } => {
+                        self.toasts.error(format!("Error {}: {}", code, message));
+                    }
                 }
             }
         }

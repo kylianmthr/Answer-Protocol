@@ -46,7 +46,7 @@ pub async fn group_invite(
             player.invitations.push(group.clone());
             player
                 .tx
-                .send(format!("EVT GROUP INVITE {}", owner_name))
+                .send(format!("EVT GROUP INVITE {}", group_name))
                 .map_err(|_| "Failed to send invitation".to_string())?;
             Ok(())
         } else {
