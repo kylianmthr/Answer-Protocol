@@ -8,6 +8,7 @@ use crate::look::look;
 use crate::move_cmd::move_cmd;
 use crate::state::Player;
 use crate::state::SharedState;
+use crate::talk::talk;
 use std::sync::Arc;
 use thiserror::Error;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
@@ -35,7 +36,7 @@ async fn verify_authentication(
 ) -> Result<String, UserError> {
     let line = line.ok_or(UserError::InvalidRead)?;
     if let Some(username) = line.strip_prefix("CONNECT ") {
-		if username.trim().is_empty() {
+        if username.trim().is_empty() {
             return Err(UserError::InvalidUsername);
         }
         let players = state.players.lock().await;
@@ -135,6 +136,19 @@ async fn handle_commands(
                             "WHO" => {
                                 write.write_all(crate::who::who(username.clone(), Arc::clone(&state)).await.as_bytes()).await.expect("Can't send who response");
                             },
+                            "TALK" => {
+                                println!("Talk command with args: {}", args);
+                                if args.is_empty() {
+                                    write.write_all(b"ERR 400 MISSING_NPC_NAME\n").await.expect("Can't send missing NPC name error");
+                                    continue;
+                                }
+                                let npc_details = talk(args, Arc::clone(&state)).await;
+                                if let Ok(details) = npc_details {
+                                    write.write_all(format!("OK {}\n", details).as_bytes()).await.expect("Can't send talk response");
+                                } else {
+                                    write.write_all(format!("ERR 404 NPC_NOT_FOUND\n").as_bytes()).await.expect("Can't send talk error response");
+                                }
+                            }
                             "GROUP" => {
                                 let arg = args.splitn(2, ' ').next().unwrap_or("");
                                 match arg {
