@@ -134,8 +134,8 @@ pub struct NpcState {
 #[derive(Debug, Serialize)]
 pub struct RoomState {
     pub id: String,
-    items: Vec<String>,
-    npcs: Vec<String>,
+    pub items: Vec<String>,
+    pub npcs: Vec<String>,
     pub players: Vec<String>,
     pub exits_rooms: Vec<String>,
 }

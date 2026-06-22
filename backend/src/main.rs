@@ -7,6 +7,7 @@ mod broadcast;
 mod chat;
 mod client;
 mod group;
+mod items;
 mod look;
 mod move_cmd;
 mod talk;
