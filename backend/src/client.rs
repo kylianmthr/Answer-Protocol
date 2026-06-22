@@ -4,6 +4,7 @@ use crate::chat::chat_room;
 use crate::group::group_accept;
 use crate::group::group_create;
 use crate::group::group_invite;
+use crate::items::take;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
 use crate::state::Player;
@@ -146,9 +147,39 @@ async fn handle_commands(
                                 if let Ok(details) = npc_details {
                                     write.write_all(format!("OK {}\n", details).as_bytes()).await.expect("Can't send talk response");
                                 } else {
-                                    write.write_all(format!("ERR 404 NPC_NOT_FOUND\n").as_bytes()).await.expect("Can't send talk error response");
+                                    write.write_all(b"ERR 404 NPC_NOT_FOUND\n").await.expect("Can't send talk error response");
                                 }
-                            }
+                            },
+                            "TAKE" => {
+                                if args.is_empty() {
+                                    write.write_all(b"ERR 400 MISSING_ITEM_NAME\n").await.expect("Can't send missing item name error");
+                                    continue;
+                                }
+                                let result = take(username.clone(), args.to_string(), Arc::clone(&state)).await;
+                                if let Ok(response) = result {
+                                    write.write_all(format!("{}\n", response).as_bytes()).await.expect("Can't send take response");
+                                } else {
+                                    write.write_all(b"ERR 404 ITEM_NOT_FOUND\n").await.expect("Can't send take error response");
+                                }
+                            },
+                            "DROP" => {
+                                if args.is_empty() {
+                                    write.write_all(b"ERR 400 MISSING_ITEM_NAME\n").await.expect("Can't send missing item name error");
+                                    continue;
+                                }
+                                let result = crate::items::drop(username.clone(), args.to_string(), Arc::clone(&state)).await;
+                                if let Ok(response) = result {
+                                    write.write_all(format!("{}\n", response).as_bytes()).await.expect("Can't send drop response");
+                                } else {
+                                    write.write_all(b"ERR 404 ITEM_NOT_IN_INVENTORY\n").await.expect("Can't send drop error response");
+                                }
+                            },
+                            "INVENTORY" => {
+                                let players = state.players.lock().await;
+                                let player = players.get(&username).unwrap();
+                                let inventory = &player.inventory;
+                                write.write_all(format!("OK {}\n", serde_json::to_string(inventory).unwrap()).as_bytes()).await.expect("Can't send inventory response");
+                            },
                             "GROUP" => {
                                 let arg = args.splitn(2, ' ').next().unwrap_or("");
                                 match arg {
