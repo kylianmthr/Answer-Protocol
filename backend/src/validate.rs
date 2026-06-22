@@ -56,5 +56,13 @@ pub fn validate_yaml(world_data: &WorldData) -> Result<(), WorldError> {
             return Err(WorldError::InvalidRoomRef);
         }
     }
+
+    for npc in world_data.world.npcs.values() {
+        if let Some(quest) = &npc.quest {
+            if !world_data.world.items.contains_key(&quest.reward) {
+                return Err(WorldError::InvalidItemRef);
+            }
+        }
+    }
     Ok(())
 }
