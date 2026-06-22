@@ -84,7 +84,7 @@ pub struct Item {
     pub obtainable: bool,
 }
 
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Serialize, Validate)]
 pub struct Npc {
     #[validate(length(min = 1, max = 255))]
     pub name: String,
@@ -137,13 +137,13 @@ pub struct RoomState {
     items: Vec<String>,
     npcs: Vec<String>,
     pub players: Vec<String>,
-	pub exits_rooms: Vec<String>,
+    pub exits_rooms: Vec<String>,
 }
 
 #[derive(Debug)]
 pub struct WorldState {
     pub room: HashMap<String, RoomState>,
-    npcs: HashMap<String, NpcState>,
+    pub npcs: HashMap<String, NpcState>,
 }
 
 pub struct SharedState {
@@ -164,7 +164,7 @@ impl WorldState {
                     items: room.items.clone(),
                     npcs: room.npcs.clone(),
                     players: Vec::new(),
-					exits_rooms: room.exits.keys().cloned().collect(),
+                    exits_rooms: room.exits.keys().cloned().collect(),
                 },
             );
         }

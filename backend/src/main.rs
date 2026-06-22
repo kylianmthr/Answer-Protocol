@@ -9,6 +9,7 @@ mod client;
 mod group;
 mod look;
 mod move_cmd;
+mod talk;
 mod validate;
 mod who;
 
