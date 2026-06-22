@@ -7,6 +7,9 @@ use crate::group::group_invite;
 use crate::items::take;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
+use crate::quest;
+use crate::quest::get_quests;
+use crate::quest::quest;
 use crate::state::Player;
 use crate::state::SharedState;
 use crate::talk::talk;
@@ -180,6 +183,17 @@ async fn handle_commands(
                                 let inventory = &player.inventory;
                                 write.write_all(format!("OK {}\n", serde_json::to_string(inventory).unwrap()).as_bytes()).await.expect("Can't send inventory response");
                             },
+                            "QUEST" => {
+                                if args.is_empty() {
+                                    write.write_all(b"ERR 400 MISSING_NPC_NAME\n").await.expect("Can't send missing NPC name error");
+                                    continue;
+                                }
+                                let res = quest(username.clone(), args, Arc::clone(&state)).await;
+                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send quest response");
+                            },
+                            "QUESTS" => {
+                                write.write_all(format!("{}\n", get_quests(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send quests response");
+                            }
                             "GROUP" => {
                                 let arg = args.splitn(2, ' ').next().unwrap_or("");
                                 match arg {

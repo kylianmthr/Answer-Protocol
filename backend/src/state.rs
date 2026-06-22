@@ -18,6 +18,7 @@ pub struct Player {
     pub room: String,
     pub invitations: Vec<Group>,
     pub group: Option<String>,
+    pub quests: Vec<Quest>,
 }
 
 impl Player {
@@ -34,6 +35,7 @@ impl Player {
             room: room.to_string(),
             invitations: Vec::new(),
             group: None,
+            quests: Vec::new(),
         };
         player.validate()?;
         Ok(player)
@@ -96,6 +98,17 @@ pub struct Npc {
     pub hostile: bool,
     #[validate(length(min = 1, max = 255))]
     pub room: String,
+    pub quest: Option<Quest>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Validate, Clone)]
+pub struct Quest {
+    #[validate(length(min = 1, max = 255))]
+    pub name: String,
+    #[validate(length(min = 1, max = 255))]
+    pub description: String,
+    pub objective: String,
+    pub reward: String,
 }
 
 #[derive(Debug, Deserialize, Validate)]
