@@ -10,6 +10,7 @@ mod group;
 mod items;
 mod look;
 mod move_cmd;
+mod quest;
 mod talk;
 mod validate;
 mod who;
