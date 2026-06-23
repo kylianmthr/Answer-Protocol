@@ -1,7 +1,6 @@
 use crate::parser::EventType;
 use crate::parser::ServerMessage;
 // use crate::parser::ServerMessage::Ok;
-use crate::room;
 use serde_json;
 use crate::{
     action_game::ComandeButton,
@@ -555,6 +554,9 @@ impl eframe::App for MyTap {
                         if reponse.contains("group=") {
                             self.toasts.success(format!("Group created: {}", reponse));
                         }
+						if reponse.contains("take=") {
+							self.toasts.success(format!("item {}", reponse));
+						}
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
                     ServerMessage::Evt { evt_type, data } => match evt_type {
