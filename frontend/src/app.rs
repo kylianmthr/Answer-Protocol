@@ -554,7 +554,7 @@ impl eframe::App for MyTap {
                         if reponse.contains("group=") {
                             self.toasts.success(format!("Group created: {}", reponse));
                         }
-						if reponse.contains("take=") {
+						if reponse.contains("taken=") {
 							self.toasts.success(format!("item {}", reponse));
 						}
                     }
