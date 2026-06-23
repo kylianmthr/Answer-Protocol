@@ -1,5 +1,8 @@
 use crate::parser::EventType;
 use crate::parser::ServerMessage;
+// use crate::parser::ServerMessage::Ok;
+use crate::room;
+use serde_json;
 use crate::{
     action_game::ComandeButton,
     room::state_mod::{GameScreen, StateRoom},
@@ -17,6 +20,7 @@ pub struct MyTap {
 	chat_page: ChatPage,
     toasts: Toasts,
 	state_exits: Vec<String>,
+	items_room: Vec<String>,
 }
 
 // default start program into login page
@@ -35,6 +39,7 @@ impl MyTap {
             chat_page: ChatPage::default(),
             pending_room: None,
 			state_exits: Vec::new(),
+			items_room: Vec::new(),
 		}
     }
 }
@@ -202,6 +207,18 @@ impl MyTap {
 			avaiable_pos.push("west".to_string());
 		}
 		return avaiable_pos; // add pos vec ex: north false south = ["south"]
+	}
+
+	fn valide_items(serveur_reponse: &str) -> Vec<String> {
+		let chunk_json = serveur_reponse.trim_start_matches("OK").trim();
+		if let Ok(room) = serde_json::from_str::<serde_json::Value>(chunk_json) {
+			if let Some(items) = room["items"].as_array() {
+				return items.iter()
+				.filter_map(|i| i.as_str().map(String::from))
+                .collect();
+			}
+		}
+		Vec::new()
 	}
 
     fn loading_animate(ui: &mut egui::Ui) {
@@ -456,7 +473,9 @@ impl eframe::App for MyTap {
                         game_screen.draw_room(ui);
                         game_screen
                             .button_mod
-                            .draw_click_game(ui, &self.tx_outgoing, &self.state_exits);
+                            .draw_click_game(ui, &self.tx_outgoing,
+								&self.state_exits,
+								&self.items_room);
                     }
                 };
             });
@@ -497,7 +516,13 @@ impl eframe::App for MyTap {
 					// changement de salle (logique fichier 1)
                     ServerMessage::Ok(reponse) => {
 						let valid_pos = Self::valid_directions(&reponse);
-						self.state_exits = valid_pos;
+						if !valid_pos.is_empty() {
+							self.state_exits = valid_pos;
+						}
+						let items_taken = Self::valide_items(&reponse);
+						if !items_taken.is_empty() {
+							self.items_room = items_taken;
+						}
 
 						let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
