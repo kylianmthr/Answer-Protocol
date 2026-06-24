@@ -168,7 +168,7 @@ impl ComandeButton {
 			ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
 				ui.horizontal(|ui| {
 					let mut drop: bool = false;
-					for item_id in state_items {
+					for item_id in state_inventory {
 						let label_str = item_id.split(".").last().unwrap_or(item_id);
 						if Self::click_button(ui, label_str, true) {
 							tx_outcomming.send(format!("DROP {}", item_id)).unwrap();

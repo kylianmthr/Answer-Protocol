@@ -523,14 +523,10 @@ impl eframe::App for MyTap {
 						}
 
 						let items_taken = Self::parse_items(&reponse, "items");
-						if !items_taken.is_empty() {
-							self.items_room = items_taken;
-						}
+						self.items_room = items_taken;
 
 						let item_inventory = Self::parse_items(&reponse, "inventory");
-						if !item_inventory.is_empty() {
-							self.player_inventory = item_inventory;
-						}
+						self.player_inventory = item_inventory;
 
 						let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
@@ -557,7 +553,7 @@ impl eframe::App for MyTap {
                         };
 
 						if let Some(room) = next_room_tr {
-                            transition = Some(Screen::LoadingMod(90));
+                            transition = Some(Screen::LoadingMod(60));
 							self.pending_room = Some(room);
                         }
                         if reponse.contains("group=") {
