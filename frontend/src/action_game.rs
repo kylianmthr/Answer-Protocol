@@ -15,6 +15,7 @@ pub struct ComandeButton {
 	current_action: Option<StateAction>,
 }
 
+
 impl ComandeButton {
 	pub fn macthing_action() -> Self {
 		Self {current_action: None,
@@ -121,9 +122,8 @@ impl ComandeButton {
 			ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
 				ui.horizontal(|ui| {
 					for item_in in state_inventory {
-						if Self::click_button(ui, item_in, true) {
-							ui.label(item_in);
-						}
+							let label_item = item_in.split(".").last().unwrap_or(item_in);
+							ui.label(label_item);
 					}
 					if Self::click_button(ui, "BACK", true) {
 						self.current_action = None;
@@ -149,7 +149,8 @@ impl ComandeButton {
 				ui.horizontal(|ui| {
 					let mut taken: bool = false;
 						for item_id in state_items {
-							if Self::click_button(ui, item_id, true) {
+							let label_str = item_id.split(".").last().unwrap_or(item_id);
+							if Self::click_button(ui, label_str, true) {
 								tx_outcomming.send(format!("TAKE {}", item_id)).unwrap();
 								taken = true;
 							}
@@ -168,7 +169,8 @@ impl ComandeButton {
 				ui.horizontal(|ui| {
 					let mut drop: bool = false;
 					for item_id in state_items {
-						if Self::click_button(ui, item_id, true) {
+						let label_str = item_id.split(".").last().unwrap_or(item_id);
+						if Self::click_button(ui, label_str, true) {
 							tx_outcomming.send(format!("DROP {}", item_id)).unwrap();
 							drop = true;
 						}

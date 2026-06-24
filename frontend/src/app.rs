@@ -523,10 +523,14 @@ impl eframe::App for MyTap {
 						}
 
 						let items_taken = Self::valide_items(&reponse, "items");
-						self.items_room = items_taken;
+						if !items_taken.is_empty() {
+							self.items_room = items_taken;
+						}
 
 						let item_inventory = Self::valide_items(&reponse, "inventory");
-						self.player_inventory = item_inventory;
+						if !item_inventory.is_empty() {
+							self.player_inventory = item_inventory;
+						}
 
 						let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
@@ -558,12 +562,20 @@ impl eframe::App for MyTap {
                         }
                         if reponse.contains("group=") {
                             self.toasts.success(format!("Group created: {}", reponse));
-                        }
+							self.tx_outgoing.send("LOOK".to_string()).unwrap();
+						}
 						if reponse.contains("taken=") {
-							self.toasts.success(format!("item {}", reponse));
+							let split_item = reponse.split(".").last().unwrap_or(&reponse);
+							self.toasts.success(format!("taken {}", split_item));
+							self.tx_outgoing.send("LOOK".to_string()).unwrap();
 						}
 						if reponse.contains("inventory=") {
-							self.toasts.success(format!("inventory {}", reponse));
+							let split_item = reponse.split(".").last().unwrap_or(&reponse);
+							self.toasts.success(format!("inventory {}", split_item));
+						}
+						if reponse.contains("dropped=") {
+							let split_item = reponse.split(".").last().unwrap_or(&reponse);
+							self.toasts.success(format!("dropped {}", split_item));
 						}
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
