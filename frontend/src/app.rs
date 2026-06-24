@@ -210,7 +210,7 @@ impl MyTap {
 		return avaiable_pos; // add pos vec ex: north false south = ["south"]
 	}
 
-	fn valide_items(serveur_reponse: &str, look_key: &str) -> Vec<String> {
+	fn parse_items(serveur_reponse: &str, look_key: &str) -> Vec<String> {
 		let chunk_json = serveur_reponse.trim_start_matches("OK").trim();
 		if let Ok(room) = serde_json::from_str::<serde_json::Value>(chunk_json) {
 			if let Some(items) = room[look_key].as_array() {
@@ -522,12 +522,12 @@ impl eframe::App for MyTap {
 							self.state_exits = valid_pos;
 						}
 
-						let items_taken = Self::valide_items(&reponse, "items");
+						let items_taken = Self::parse_items(&reponse, "items");
 						if !items_taken.is_empty() {
 							self.items_room = items_taken;
 						}
 
-						let item_inventory = Self::valide_items(&reponse, "inventory");
+						let item_inventory = Self::parse_items(&reponse, "inventory");
 						if !item_inventory.is_empty() {
 							self.player_inventory = item_inventory;
 						}
@@ -565,16 +565,13 @@ impl eframe::App for MyTap {
 							self.tx_outgoing.send("LOOK".to_string()).unwrap();
 						}
 						if reponse.contains("taken=") {
-							let split_item = reponse.split(".").last().unwrap_or(&reponse);
 							self.toasts.success(format!("taken {}", split_item));
 							self.tx_outgoing.send("LOOK".to_string()).unwrap();
 						}
 						if reponse.contains("inventory=") {
-							let split_item = reponse.split(".").last().unwrap_or(&reponse);
 							self.toasts.success(format!("inventory {}", split_item));
 						}
 						if reponse.contains("dropped=") {
-							let split_item = reponse.split(".").last().unwrap_or(&reponse);
 							self.toasts.success(format!("dropped {}", split_item));
 						}
                     }
