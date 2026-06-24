@@ -13,13 +13,11 @@ pub enum StateAction {
 
 pub struct ComandeButton {
 	current_action: Option<StateAction>,
-	// pub take_items: String,
 }
 
 impl ComandeButton {
 	pub fn macthing_action() -> Self {
 		Self {current_action: None,
-		// take_items: String::new()
 		}
 	}
 
@@ -40,7 +38,8 @@ impl ComandeButton {
 
 	pub fn draw_click_game(&mut self, ui: &mut egui::Ui, tx_outcomming: &std::sync::mpsc::Sender<String>,
 		avaiable_vecpos: &[String],
-		state_items: &[String]) {
+		state_items: &[String],
+		state_inventory: &[String]) {
 		let rect_screen = ui.max_rect();
 		let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (60.0));
 		let pos_top = egui::pos2(rect_screen.min.x + 10.0, rect_screen.min.y + 10.0);
@@ -121,7 +120,11 @@ impl ComandeButton {
 		Some(StateAction::INVENTORY) => {
 			ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
 				ui.horizontal(|ui| {
-					ui.label("invenvtory comming soon ...");
+					for item_in in state_inventory {
+						if Self::click_button(ui, item_in, true) {
+							ui.label(item_in);
+						}
+					}
 					if Self::click_button(ui, "BACK", true) {
 						self.current_action = None;
 					}
@@ -145,9 +148,9 @@ impl ComandeButton {
 			ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
 				ui.horizontal(|ui| {
 					let mut taken: bool = false;
-						for item in state_items {
-							if Self::click_button(ui, item, true) {
-								tx_outcomming.send(format!("TAKE {}", item)).unwrap();
+						for item_id in state_items {
+							if Self::click_button(ui, item_id, true) {
+								tx_outcomming.send(format!("TAKE {}", item_id)).unwrap();
 								taken = true;
 							}
 						}
@@ -161,8 +164,23 @@ impl ComandeButton {
 			});
 		}
 		Some(StateAction::DROP) => {
-			tx_outcomming.send("DROP".to_string()).unwrap();
-			self.current_action = None;
+			ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
+				ui.horizontal(|ui| {
+					let mut drop: bool = false;
+					for item_id in state_items {
+						if Self::click_button(ui, item_id, true) {
+							tx_outcomming.send(format!("DROP {}", item_id)).unwrap();
+							drop = true;
+						}
+					}
+					if drop {
+						self.current_action = None;
+					}
+					if Self::click_button(ui, "BACK", true) {
+						self.current_action = None;
+					}
+				}).response
+			});
 		}
 		Some(StateAction::QUEST) => {
 			tx_outcomming.send("QUEST".to_string()).unwrap();

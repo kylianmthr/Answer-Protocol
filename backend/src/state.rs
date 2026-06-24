@@ -151,6 +151,7 @@ pub struct RoomState {
     pub npcs: Vec<String>,
     pub players: Vec<String>,
     pub exits_rooms: Vec<String>,
+	pub inventory: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -178,7 +179,8 @@ impl WorldState {
                     npcs: room.npcs.clone(),
                     players: Vec::new(),
                     exits_rooms: room.exits.keys().cloned().collect(),
-                },
+					inventory: Vec::new(),
+				},
             );
         }
         let mut npc_state = HashMap::new();
