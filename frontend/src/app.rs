@@ -1,6 +1,5 @@
 use crate::parser::EventType;
 use crate::parser::ServerMessage;
-// use crate::parser::ServerMessage::Ok;
 use serde_json;
 use crate::{
     action_game::ComandeButton,
