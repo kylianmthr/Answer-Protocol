@@ -565,14 +565,14 @@ impl eframe::App for MyTap {
 							self.tx_outgoing.send("LOOK".to_string()).unwrap();
 						}
 						if reponse.contains("taken=") {
-							self.toasts.success(format!("taken {}", split_item));
+							self.toasts.success(format!("taken {}", reponse));
 							self.tx_outgoing.send("LOOK".to_string()).unwrap();
 						}
 						if reponse.contains("inventory=") {
-							self.toasts.success(format!("inventory {}", split_item));
+							self.toasts.success(format!("inventory {}", reponse));
 						}
 						if reponse.contains("dropped=") {
-							self.toasts.success(format!("dropped {}", split_item));
+							self.toasts.success(format!("dropped {}", reponse));
 						}
                     }
                     // messages de chat (logique fichier 2) -> stockes dans self.chat_page
