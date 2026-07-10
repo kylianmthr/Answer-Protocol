@@ -18,7 +18,7 @@ pub struct Player {
     pub room: String,
     pub invitations: Vec<Group>,
     pub group: Option<String>,
-    pub quests: Vec<Quest>,
+    pub quests: Vec<PlayerQuest>,
 }
 
 impl Player {
@@ -104,11 +104,34 @@ pub struct Npc {
 #[derive(Debug, Deserialize, Serialize, Validate, Clone)]
 pub struct Quest {
     #[validate(length(min = 1, max = 255))]
+    pub id: String,
+    #[validate(length(min = 1, max = 255))]
     pub name: String,
     #[validate(length(min = 1, max = 255))]
     pub description: String,
     pub objective: String,
     pub reward: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum QuestStatus {
+    Active,
+    Completed,
+}
+
+impl QuestStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            QuestStatus::Active => "active",
+            QuestStatus::Completed => "completed",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PlayerQuest {
+    pub quest: Quest,
+    pub status: QuestStatus,
 }
 
 #[derive(Debug, Deserialize, Validate)]
