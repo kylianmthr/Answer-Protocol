@@ -1,9 +1,7 @@
 world:
-  # Correspond à StateRoom::Room1 dans votre code
   initial_room: "loc.tavern"
   rooms:
 
-    # StateRoom::Room1
     loc.tavern:
       name: "Le Chaudron Baveur"
       description: "Une taverne sombre mais accueillante où les tasses de hydromel flottent d'une table à l'autre."
@@ -12,7 +10,6 @@ world:
       items: ["item.flocondavoine", "item.bierebeurre"]
       npcs: ["npc.taverniere"]
 
-    # StateRoom::Room2
     loc.square:
       name: "Place du Vieux Grimoire"
       description: "Le centre du village, pavé de pierres runiques. Une statue d'un grand mage trône au centre."
@@ -24,7 +21,6 @@ world:
       items: ["item.herbs"]
       npcs: ["npc.guard"]
 
-    # StateRoom::Room3
     loc.shop:
       name: "Baguettes & Sortilèges"
       description: "Une boutique poussiéreuse remplie de boîtes fines empilées jusqu'au plafond."
@@ -33,7 +29,6 @@ world:
       items: ["item.wand", "item.cauldron"]
       npcs: ["npc.marchand"]
 
-    # StateRoom::Room4
     loc.forest:
       name: "Forêt des Murmures"
       description: "Les arbres semblent vous observer et l'air vibre d'une magie ancienne."
@@ -43,9 +38,6 @@ world:
       items: ["item.wood"]
       npcs: ["npc.dryade"]
 
-    # --- Les 4 nouvelles pièces pour arriver à 8 ---
-
-    # StateRoom::Room5 (Logique de dessin suivante)
     loc.library:
       name: "Bibliothèque Interdite"
       description: "Des milliers de livres anciens enchaînés aux étagères. On entend des chuchotements s'échapper des pages."
@@ -55,7 +47,6 @@ world:
       items: ["item.grimoire"]
       npcs: []
 
-    # StateRoom::Room6
     loc.observatory:
       name: "Tour de l'Astral"
       description: "Le sommet de la tour de l'académie. Un immense télescope pointe vers des constellations mobiles."
@@ -64,7 +55,6 @@ world:
       items: ["item.cristal"]
       npcs: ["npc.astrologue"]
 
-    # StateRoom::Room7
     loc.swamp:
       name: "Marais Putride"
       description: "Une zone marécageuse d'où s'échappent des bulles de gaz magique. Idéal pour trouver des ingrédients rares."
@@ -74,7 +64,6 @@ world:
       items: ["item.toad"]
       npcs: []
 
-    # StateRoom::Room8
     loc.crypt:
       name: "Crypte des Anciens"
       description: "Un souterrain glacial sous le marais, éclairé par des torches de feu follet bleu."
@@ -128,6 +117,14 @@ world:
       name: "Amulette de Protection"
       description: "Protège contre les malédictions mineures."
       obtainable: true
+    item.gold_coin:
+      name: "Gallion d'or"
+      description: "Une pièce d'or frappée du sceau de la banque des gobelins."
+      obtainable: true
+    item.potion:
+      name: "Potion de Chance"
+      description: "Un liquide doré qui pétille joyeusement."
+      obtainable: true
 
   npcs:
     npc.guard:
@@ -144,6 +141,12 @@ world:
       hp: 80
       hostile: false
       room: "loc.tavern"
+      quest:
+        id: "fetch_herbs"
+        name: "Herbes pour le ragoût"
+        description: "Rapportez-moi des Herbes Médicinales de la place du village."
+        objective: "item.herbs"
+        reward: "item.gold_coin"
     npc.marchand:
       name: "Ollivander local"
       description: "Un vieil homme aux yeux vifs qui semble tout savoir sur vous."
@@ -151,6 +154,12 @@ world:
       hp: 60
       hostile: false
       room: "loc.shop"
+      quest:
+        id: "fetch_wood"
+        name: "Bois pour les baguettes"
+        description: "Trouvez du Bois de Wychwood dans la forêt et je vous récompenserai."
+        objective: "item.wood"
+        reward: "item.potion"
     npc.dryade:
       name: "Elowen la Dryade"
       description: "Une créature sylvestre dont la peau ressemble à de l'écorce."

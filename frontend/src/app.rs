@@ -14,14 +14,14 @@ pub struct MyTap {
     pending_room: Option<StateRoom>,
     pub rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
     pub tx_outgoing: std::sync::mpsc::Sender<String>,
-	chat_page: ChatPage,
+    chat_page: ChatPage,
     toasts: Toasts,
-	state_exits: Vec<String>,
+    state_exits: Vec<String>,
+    state_items: Vec<String>,
+    state_npcs: Vec<String>,
+    state_inventory: Vec<String>,
 }
 
-// default start program into login page
-// modify into update fn with self.screen to change state
-//e.g self.screen = Screen::GameView{...}
 impl MyTap {
     pub fn new(
         rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
@@ -34,12 +34,14 @@ impl MyTap {
             toasts: Toasts::default(),
             chat_page: ChatPage::default(),
             pending_room: None,
-			state_exits: Vec::new(),
-		}
+            state_exits: Vec::new(),
+            state_items: Vec::new(),
+            state_npcs: Vec::new(),
+            state_inventory: Vec::new(),
+        }
     }
 }
 
-// mult screen manager
 enum Screen {
     LoginView(LoginPage),
     GameView(GameScreen),
@@ -90,7 +92,7 @@ struct ChatPage {
     scope: Scope,
     messages: Vec<Message>,
     message_input: String,
-	// show_panel_cmd: bool,
+    // show_panel_cmd: bool,
 }
 
 struct SlashCommand {
@@ -126,6 +128,36 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
         hint: "Leave a group.",
     },
 ];
+
+fn json_field(json: &str, key: &str) -> Option<String> {
+    let pattern = format!("\"{}\":\"", key);
+    let start = json.find(&pattern)? + pattern.len();
+    let end = json[start..].find('"')? + start;
+    Some(json[start..end].to_string())
+}
+
+fn json_array(json: &str, key: &str) -> Option<Vec<String>> {
+    let pattern = format!("\"{}\":[", key);
+    let start = json.find(&pattern)? + pattern.len();
+    let end = json[start..].find(']')? + start;
+    Some(
+        json[start..end]
+            .split(',')
+            .map(|s| s.trim().trim_matches('"').to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+    )
+}
+
+fn parse_bare_array(json: &str) -> Vec<String> {
+    json.trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .split(',')
+        .map(|s| s.trim().trim_matches('"').to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
 
 fn matching_commands(input: &str) -> Vec<&'static SlashCommand> {
     SLASH_COMMANDS
@@ -167,14 +199,12 @@ pub fn font_style(egui_ctx: &egui::Context) {
         vec!["undertale_font".to_owned()],
     );
 
-    //font priority projet
     undertale_font
         .families
         .get_mut(&FontFamily::Proportional)
         .unwrap()
         .insert(0, "undertale_font".to_owned());
 
-    // security_font
     undertale_font
         .families
         .get_mut(&FontFamily::Monospace)
@@ -185,25 +215,6 @@ pub fn font_style(egui_ctx: &egui::Context) {
 }
 
 impl MyTap {
-	fn valid_directions(server_reponse: &str) -> Vec<String> {
-		let mut avaiable_pos = Vec::new();
-		let lower_response = server_reponse.to_lowercase();
-
-		if lower_response.contains("north") {
-			avaiable_pos.push("north".to_string());
-		}
-		if lower_response.contains("south") {
-			avaiable_pos.push("south".to_string());
-		}
-		if lower_response.contains("east") {
-			avaiable_pos.push("east".to_string());
-		}
-		if lower_response.contains("west") {
-			avaiable_pos.push("west".to_string());
-		}
-		return avaiable_pos; // add pos vec ex: north false south = ["south"]
-	}
-
     fn loading_animate(ui: &mut egui::Ui) {
         let get_rect = ui.max_rect();
         ui.painter()
@@ -297,7 +308,7 @@ impl MyTap {
         //         style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
         //         style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
 
-		// 		let res = ui.add(
+        // 		let res = ui.add(
         //             egui::TextEdit::singleline(&mut chat_page.message_input)
         //                 .hint_text("Type your message here...")
         //                 .font(egui::FontId::new(
@@ -315,71 +326,71 @@ impl MyTap {
         //                 ))
         //                 .unwrap();
         //                 chat_page.message_input.clear();
-            ui.vertical_centered(|ui| {
-                ui.scope(|ui| {
-                    if chat_page.message_input.starts_with('/') {
-                        let suggestions = matching_commands(&chat_page.message_input);
-                        if !suggestions.is_empty() {
-                            ui.add_space(4.0);
-                            egui::Frame::new()
-                                .corner_radius(egui::CornerRadius::same(8_u8))
-                                .inner_margin(egui::Margin::same(6))
-                                .show(ui, |ui| {
-                                    for cmd in suggestions {
-                                        let label = format!("{}  —  {}", cmd.pattern, cmd.hint);
-                                        if ui.selectable_label(false, label).clicked() {
-                                            chat_page.message_input = if cmd.takes_arg {
-                                                format!("{} ", cmd.pattern)
-                                            } else {
-                                                cmd.pattern.to_string()
-                                            };
-                                        }
+        ui.vertical_centered(|ui| {
+            ui.scope(|ui| {
+                if chat_page.message_input.starts_with('/') {
+                    let suggestions = matching_commands(&chat_page.message_input);
+                    if !suggestions.is_empty() {
+                        ui.add_space(4.0);
+                        egui::Frame::new()
+                            .corner_radius(egui::CornerRadius::same(8_u8))
+                            .inner_margin(egui::Margin::same(6))
+                            .show(ui, |ui| {
+                                for cmd in suggestions {
+                                    let label = format!("{}  —  {}", cmd.pattern, cmd.hint);
+                                    if ui.selectable_label(false, label).clicked() {
+                                        chat_page.message_input = if cmd.takes_arg {
+                                            format!("{} ", cmd.pattern)
+                                        } else {
+                                            cmd.pattern.to_string()
+                                        };
                                     }
-                                });
-                        }
+                                }
+                            });
                     }
-                    let style_field = ui.style_mut();
-                    let rounding_field = egui::CornerRadius::same(10_u8);
+                }
+                let style_field = ui.style_mut();
+                let rounding_field = egui::CornerRadius::same(10_u8);
 
-                    style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
-                    style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
+                style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
+                style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
 
-                    style_field.visuals.widgets.active.corner_radius = rounding_field;
-                    style_field.visuals.widgets.hovered.corner_radius = rounding_field;
-                    style_field.visuals.widgets.inactive.corner_radius = rounding_field;
-                    style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
-                    style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
+                style_field.visuals.widgets.active.corner_radius = rounding_field;
+                style_field.visuals.widgets.hovered.corner_radius = rounding_field;
+                style_field.visuals.widgets.inactive.corner_radius = rounding_field;
+                style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
+                style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
 
-                    let res = ui.add(
-                        egui::TextEdit::singleline(&mut chat_page.message_input)
-                            .id_salt("chat_input")
-                            .hint_text("Type your message here...")
-                            .font(egui::FontId::new(
-                                20.0_f32,
-                                egui::FontFamily::Name("undertale_font".into()),
-                            )),
-                    );
+                let res = ui.add(
+                    egui::TextEdit::singleline(&mut chat_page.message_input)
+                        .id_salt("chat_input")
+                        .hint_text("Type your message here...")
+                        .font(egui::FontId::new(
+                            20.0_f32,
+                            egui::FontFamily::Name("undertale_font".into()),
+                        )),
+                );
 
-                    if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                        if !chat_page.message_input.trim().is_empty() {
-                            if let Some(protocol_cmd) = resolve_command(&chat_page.message_input) {
-                                tx.send(protocol_cmd).unwrap();
-                            } else if chat_page.message_input.starts_with('/') {
-                                // commande inconnue, idéalement un toast d'erreur ici
-                                // (faudrait threader `toasts` jusqu'à draw_chat si tu veux ce feedback)
-                            } else {
-                                tx.send(format!(
-                                    "CHAT {} {}",
-                                    chat_page.scope, chat_page.message_input
-                                ))
-                                .unwrap();
-                            }
-                            chat_page.message_input.clear();
+                if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                    if !chat_page.message_input.trim().is_empty() {
+                        if let Some(protocol_cmd) = resolve_command(&chat_page.message_input) {
+                            tx.send(protocol_cmd).unwrap();
+                        } else if chat_page.message_input.starts_with('/') {
+                            // commande inconnue, idéalement un toast d'erreur ici
+                            // (faudrait threader `toasts` jusqu'à draw_chat si tu veux ce feedback)
+                        } else {
+                            tx.send(format!(
+                                "CHAT {} {}",
+                                chat_page.scope, chat_page.message_input
+                            ))
+                            .unwrap();
                         }
+                        chat_page.message_input.clear();
                     }
-                });
+                }
             });
-	}
+        });
+    }
 
     fn draw_scope_button(ui: &mut egui::Ui, chat_page: &mut ChatPage) {
         ui.horizontal(|ui| {
@@ -396,11 +407,8 @@ impl MyTap {
     }
 }
 
-// apply contrat (App) on MyTap
 impl eframe::App for MyTap {
-    // modify (mut) once per frame
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
-        // toats log permanent
         self.toasts.show(ctx);
         if matches!(self.screen, Screen::GameView(_)) {
             let tx = self.tx_outgoing.clone();
@@ -439,7 +447,7 @@ impl eframe::App for MyTap {
         egui::CentralPanel::default()
             .frame(remove_border_bg)
             .show_inside(ctx, |ui| {
-                let get_rect_screen = ui.max_rect(); // window_size
+                let get_rect_screen = ui.max_rect();
                 match &mut self.screen {
                     Screen::LoginView(login_page) => {
                         let image_log_bg =
@@ -450,13 +458,18 @@ impl eframe::App for MyTap {
                     Screen::LoadingMod(load_mod) => {
                         Self::loading_animate(ui);
                         *load_mod -= 1;
-                        ui.ctx().request_repaint(); // frame / frame
+                        ui.ctx().request_repaint();
                     }
                     Screen::GameView(game_screen) => {
                         game_screen.draw_room(ui);
-                        game_screen
-                            .button_mod
-                            .draw_click_game(ui, &self.tx_outgoing, &self.state_exits);
+                        game_screen.button_mod.draw_click_game(
+                            ui,
+                            &self.tx_outgoing,
+                            &self.state_exits,
+                            &self.state_items,
+                            &self.state_npcs,
+                            &self.state_inventory,
+                        );
                     }
                 };
             });
@@ -493,13 +506,38 @@ impl eframe::App for MyTap {
 
         if let Screen::GameView(_) = &mut self.screen {
             while let Ok(msg) = self.rx_incoming.try_recv() {
-				match msg {
-					// changement de salle (logique fichier 1)
+                match msg {
                     ServerMessage::Ok(reponse) => {
-						let valid_pos = Self::valid_directions(&reponse);
-						self.state_exits = valid_pos;
+                        if let Some(exits) = json_array(&reponse, "exits_rooms") {
+                            self.state_exits = exits;
+                        }
 
-						let next_room_tr = if reponse.contains("loc.tavern") {
+                        if let Some(items) = json_array(&reponse, "items") {
+                            self.state_items = items;
+                        }
+                        if let Some(item_id) = reponse.strip_prefix("taken=") {
+                            self.state_items.retain(|i| i != item_id);
+                            self.state_inventory.push(item_id.to_string());
+                            self.toasts.success(format!("Took {}", item_id));
+                        }
+                        if let Some(item_id) = reponse.strip_prefix("dropped=") {
+                            self.state_inventory.retain(|i| i != item_id);
+                            self.state_items.push(item_id.to_string());
+                            self.toasts.success(format!("Dropped {}", item_id));
+                        }
+                        if reponse.starts_with('[') && reponse.contains("\"item.") {
+                            self.state_inventory = parse_bare_array(&reponse);
+                        }
+                        if let Some(npcs) = json_array(&reponse, "npcs") {
+                            self.state_npcs = npcs;
+                        }
+                        if let Some(dialogue) = json_array(&reponse, "dialogue") {
+                            let name = json_field(&reponse, "name").unwrap_or_default();
+                            let line = dialogue.first().cloned().unwrap_or_default();
+                            self.toasts.info(format!("{}: {}", name, line));
+                        }
+
+                        let next_room_tr = if reponse.contains("loc.tavern") {
                             Some(StateRoom::Room1)
                         } else if reponse.contains("loc.square") {
                             Some(StateRoom::Room2)
@@ -508,30 +546,50 @@ impl eframe::App for MyTap {
                         } else if reponse.contains("loc.forest") {
                             Some(StateRoom::Room4)
                         } else if reponse.contains("loc.library") {
-							Some(StateRoom::Room5)
-						}
-						else if reponse.contains("loc.observatory") {
-							Some(StateRoom::Room6)
-						}
-						else if reponse.contains("loc.swamp") {
-							Some(StateRoom::Room7)
-						}
-						else if reponse.contains("loc.crypt") {
-							Some(StateRoom::Room8)
-						}
-						else {
+                            Some(StateRoom::Room5)
+                        } else if reponse.contains("loc.observatory") {
+                            Some(StateRoom::Room6)
+                        } else if reponse.contains("loc.swamp") {
+                            Some(StateRoom::Room7)
+                        } else if reponse.contains("loc.crypt") {
+                            Some(StateRoom::Room8)
+                        } else {
                             None
                         };
 
-						if let Some(room) = next_room_tr {
+                        if let Some(room) = next_room_tr {
                             transition = Some(Screen::LoadingMod(90));
-							self.pending_room = Some(room);
+                            self.pending_room = Some(room);
                         }
                         if reponse.contains("group=") {
                             self.toasts.success(format!("Group created: {}", reponse));
                         }
+                        if reponse.starts_with('{') && reponse.contains("\"quest_id\"") {
+                            let name = json_field(&reponse, "name").unwrap_or_default();
+                            let description =
+                                json_field(&reponse, "description").unwrap_or_default();
+                            let status = json_field(&reponse, "status").unwrap_or_default();
+                            if status == "completed" {
+                                let reward = json_field(&reponse, "reward").unwrap_or_default();
+                                self.toasts.success(format!(
+                                    "Quest completed: {} (reward: {})",
+                                    name, reward
+                                ));
+                            } else {
+                                self.toasts
+                                    .info(format!("Quest: {} — {}", name, description));
+                            }
+                        }
+                        if reponse.starts_with('[') && reponse.contains("\"quest_id\"") {
+                            for entry in reponse.split('{').skip(1) {
+                                let quest_id = json_field(entry, "quest_id").unwrap_or_default();
+                                let status = json_field(entry, "status").unwrap_or_default();
+                                let progress = json_field(entry, "progress").unwrap_or_default();
+                                self.toasts
+                                    .info(format!("{} — {} ({})", quest_id, status, progress));
+                            }
+                        }
                     }
-                    // messages de chat (logique fichier 2) -> stockes dans self.chat_page
                     ServerMessage::Evt { evt_type, data } => match evt_type {
                         EventType::RoomChat => {
                             let username = data.splitn(2, ' ').next().unwrap_or("").to_string();

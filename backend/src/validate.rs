@@ -59,7 +59,9 @@ pub fn validate_yaml(world_data: &WorldData) -> Result<(), WorldError> {
 
     for npc in world_data.world.npcs.values() {
         if let Some(quest) = &npc.quest {
-            if !world_data.world.items.contains_key(&quest.reward) {
+            if !world_data.world.items.contains_key(&quest.reward)
+                || !world_data.world.items.contains_key(&quest.objective)
+            {
                 return Err(WorldError::InvalidItemRef);
             }
         }
