@@ -46,6 +46,17 @@ enum Screen {
     LoginView(LoginPage),
     GameView(GameScreen),
     LoadingMod(u8),
+    CombatView(CombatState),
+    EndView(String),
+}
+
+struct CombatState {
+    enemy: String,
+    player_hp: i64,
+    enemy_hp: i64,
+    can_act: bool,
+    enemy_turn_at: Option<f64>,
+    last_msg: String,
 }
 
 #[derive(Default)]
@@ -149,6 +160,20 @@ fn json_array(json: &str, key: &str) -> Option<Vec<String>> {
     )
 }
 
+fn json_number(json: &str, key: &str) -> i64 {
+    let pattern = format!("\"{}\":", key);
+    match json.find(&pattern) {
+        Some(start) => json[start + pattern.len()..]
+            .chars()
+            .skip_while(|c| c.is_whitespace())
+            .take_while(|c| c.is_ascii_digit() || *c == '-')
+            .collect::<String>()
+            .parse()
+            .unwrap_or(0),
+        None => 0,
+    }
+}
+
 fn parse_bare_array(json: &str) -> Vec<String> {
     json.trim()
         .trim_start_matches('[')
@@ -233,6 +258,82 @@ impl MyTap {
                     .size(32.0_f32)
                     .color(egui::Color32::from_rgba_unmultiplied(114, 125, 253, a)),
             );
+        });
+    }
+
+    fn draw_combat(
+        ui: &mut egui::Ui,
+        combat: &mut CombatState,
+        tx: &std::sync::mpsc::Sender<String>,
+    ) {
+        let rect = ui.max_rect();
+        ui.painter()
+            .rect_filled(rect, 0.0, egui::Color32::from_rgb(24, 18, 28));
+        ui.vertical_centered(|ui| {
+            ui.add_space(rect.height() / 2.0 - 150.0);
+            ui.label(
+                egui::RichText::new("⚔ COMBAT ⚔")
+                    .size(40.0_f32)
+                    .color(egui::Color32::from_rgb(243, 139, 168)),
+            );
+            ui.add_space(24.0);
+            ui.label(
+                egui::RichText::new(&combat.enemy)
+                    .size(22.0_f32)
+                    .color(egui::Color32::from_rgb(205, 214, 244)),
+            );
+            ui.label(
+                egui::RichText::new(format!("Enemy HP: {}", combat.enemy_hp))
+                    .size(18.0_f32)
+                    .color(egui::Color32::from_rgb(243, 139, 168)),
+            );
+            ui.add_space(18.0);
+            ui.label(
+                egui::RichText::new(format!("Your HP: {}", combat.player_hp))
+                    .size(18.0_f32)
+                    .color(egui::Color32::from_rgb(166, 227, 161)),
+            );
+            ui.add_space(16.0);
+            let turn_line = if combat.can_act {
+                "Your turn".to_string()
+            } else {
+                combat.last_msg.clone()
+            };
+            ui.label(
+                egui::RichText::new(turn_line)
+                    .size(16.0_f32)
+                    .color(egui::Color32::from_rgb(180, 190, 210)),
+            );
+            ui.add_space(24.0);
+            if ComandeButton::click_button(ui, "ATTACK", combat.can_act) {
+                tx.send(format!("ATTACK {}", combat.enemy)).unwrap();
+                combat.can_act = false;
+                combat.last_msg = "You strike...".to_string();
+            }
+        });
+    }
+
+    fn draw_end(ui: &mut egui::Ui, enemy: &str, tx: &std::sync::mpsc::Sender<String>) {
+        let rect = ui.max_rect();
+        ui.painter().rect_filled(rect, 0.0, egui::Color32::BLACK);
+        ui.vertical_centered(|ui| {
+            ui.add_space(rect.height() / 2.0 - 80.0);
+            ui.label(
+                egui::RichText::new("VICTORY")
+                    .size(48.0_f32)
+                    .color(egui::Color32::from_rgb(114, 135, 253)),
+            );
+            ui.add_space(16.0);
+            ui.label(
+                egui::RichText::new(format!("You defeated {}", enemy))
+                    .size(20.0_f32)
+                    .color(egui::Color32::from_rgb(205, 214, 244)),
+            );
+            ui.add_space(40.0);
+            if ComandeButton::click_button(ui, "QUIT", true) {
+                tx.send("QUIT".to_string()).unwrap();
+                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
+            }
         });
     }
 
@@ -471,6 +572,12 @@ impl eframe::App for MyTap {
                             &self.state_inventory,
                         );
                     }
+                    Screen::CombatView(combat) => {
+                        Self::draw_combat(ui, combat, &self.tx_outgoing);
+                    }
+                    Screen::EndView(enemy) => {
+                        Self::draw_end(ui, enemy, &self.tx_outgoing);
+                    }
                 };
             });
 
@@ -589,6 +696,44 @@ impl eframe::App for MyTap {
                                     .info(format!("{} — {} ({})", quest_id, status, progress));
                             }
                         }
+                        if reponse.contains("\"max_hp\"") {
+                            let hp = json_number(&reponse, "hp");
+                            let max_hp = json_number(&reponse, "max_hp");
+                            let label = json_field(&reponse, "status").unwrap_or_default();
+                            self.toasts
+                                .info(format!("HP: {}/{} ({})", hp, max_hp, label));
+                        }
+                        if reponse.contains("\"attacker_hp\"") {
+                            let attacker_hp = json_number(&reponse, "attacker_hp");
+                            let target_hp = json_number(&reponse, "target_hp");
+                            let status = json_field(&reponse, "status").unwrap_or_default();
+                            let enemy = json_field(&reponse, "enemy")
+                                .or_else(|| self.state_npcs.first().cloned())
+                                .unwrap_or_default();
+                            match status.as_str() {
+                                "victory" => transition = Some(Screen::EndView(enemy)),
+                                "defeat" => {
+                                    self.toasts.error(
+                                        "You died! Back to the start — you can retry.".to_string(),
+                                    );
+                                    self.tx_outgoing.send("LOOK".to_string()).unwrap();
+                                    self.pending_room = Some(StateRoom::Room1);
+                                    transition = Some(Screen::LoadingMod(90));
+                                }
+                                _ => {
+                                    let now = ctx.input(|i| i.time);
+                                    let dmg = json_number(&reponse, "damage");
+                                    transition = Some(Screen::CombatView(CombatState {
+                                        enemy,
+                                        player_hp: attacker_hp,
+                                        enemy_hp: target_hp,
+                                        can_act: false,
+                                        enemy_turn_at: Some(now + 0.7),
+                                        last_msg: format!("You hit for {}!", dmg),
+                                    }));
+                                }
+                            }
+                        }
                     }
                     ServerMessage::Evt { evt_type, data } => match evt_type {
                         EventType::RoomChat => {
@@ -630,12 +775,77 @@ impl eframe::App for MyTap {
                         EventType::PresenceLeave => {
                             self.toasts.info(format!("{} leave the room", data));
                         }
+                        EventType::Combat => {
+                            self.toasts.info(format!("Combat: {}", data));
+                        }
                         _ => {}
                     },
 
                     ServerMessage::Err { code, message } => {
                         self.toasts.error(format!("Error {}: {}", code, message));
                     }
+                }
+            }
+        }
+
+        if let Screen::CombatView(_) = &self.screen {
+            let now = ctx.input(|i| i.time);
+            if let Screen::CombatView(c) = &mut self.screen {
+                if let Some(at) = c.enemy_turn_at {
+                    if now >= at {
+                        c.enemy_turn_at = None;
+                        self.tx_outgoing
+                            .send(format!("ATTACK {}", c.enemy))
+                            .unwrap();
+                    } else {
+                        ctx.ctx().request_repaint();
+                    }
+                }
+            }
+            while let Ok(msg) = self.rx_incoming.try_recv() {
+                match msg {
+                    ServerMessage::Ok(reponse) if reponse.contains("\"attacker_hp\"") => {
+                        let attacker_hp = json_number(&reponse, "attacker_hp");
+                        let target_hp = json_number(&reponse, "target_hp");
+                        let dmg = json_number(&reponse, "damage");
+                        let actor = json_field(&reponse, "actor").unwrap_or_default();
+                        let status = json_field(&reponse, "status").unwrap_or_default();
+                        match status.as_str() {
+                            "victory" => {
+                                let enemy = match &self.screen {
+                                    Screen::CombatView(c) => c.enemy.clone(),
+                                    _ => String::new(),
+                                };
+                                transition = Some(Screen::EndView(enemy));
+                            }
+                            "defeat" => {
+                                self.toasts.error(
+                                    "You died! Back to the start — you can retry.".to_string(),
+                                );
+                                self.tx_outgoing.send("LOOK".to_string()).unwrap();
+                                self.pending_room = Some(StateRoom::Room1);
+                                transition = Some(Screen::LoadingMod(90));
+                            }
+                            _ => {
+                                if let Screen::CombatView(c) = &mut self.screen {
+                                    if actor == "enemy" {
+                                        c.player_hp = attacker_hp;
+                                        c.can_act = true;
+                                        c.last_msg = format!("Enemy hits for {}!", dmg);
+                                    } else {
+                                        c.enemy_hp = target_hp;
+                                        c.can_act = false;
+                                        c.enemy_turn_at = Some(now + 0.7);
+                                        c.last_msg = format!("You hit for {}!", dmg);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ServerMessage::Err { code, message } => {
+                        self.toasts.error(format!("Error {}: {}", code, message));
+                    }
+                    _ => {}
                 }
             }
         }

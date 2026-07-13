@@ -21,7 +21,7 @@ impl ComandeButton {
         }
     }
 
-    fn click_button(ui: &mut egui::Ui, label: &str, good_pos: bool) -> bool {
+    pub fn click_button(ui: &mut egui::Ui, label: &str, good_pos: bool) -> bool {
         ui.add_enabled(
             good_pos,
             egui::Button::new(
@@ -146,8 +146,26 @@ impl ComandeButton {
                 });
             }
             Some(StateAction::ATTACK) => {
-                tx_outcomming.send("ATTACK".to_string()).unwrap();
-                self.current_action = None;
+                ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
+                    ui.horizontal(|ui| {
+                        if available_npcs.is_empty() {
+                            ui.label("No one to fight");
+                        } else {
+                            for npc in available_npcs {
+                                if Self::click_button(ui, npc, true) {
+                                    tx_outcomming.send(format!("ATTACK {}", npc)).unwrap();
+                                }
+                            }
+                        }
+                        if Self::click_button(ui, "STATUS", true) {
+                            tx_outcomming.send("STATUS".to_string()).unwrap();
+                        }
+                        if Self::click_button(ui, "BACK", true) {
+                            self.current_action = None;
+                        }
+                    })
+                    .response
+                });
             }
             Some(StateAction::LOOK) => {
                 tx_outcomming.send("LOOK".to_string()).unwrap();
