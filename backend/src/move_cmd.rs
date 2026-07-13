@@ -1,4 +1,8 @@
-use crate::{broadcast::broadcast_room, look::look, state::SharedState};
+use crate::{
+    broadcast::broadcast_room,
+    look::look,
+    state::{SharedState, Turn},
+};
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -34,6 +38,7 @@ pub async fn move_cmd(
     let next_room_id = room.exits.get(direction.as_str()).unwrap().to_string();
     current_room.players.retain(|p| p != &username);
     player.room = room.exits.get(direction.as_str()).unwrap().to_string();
+    player.combat_turn = Turn::Player;
     drop(world_state);
     drop(players);
     broadcast_room(
@@ -48,6 +53,6 @@ pub async fn move_cmd(
         state.clone(),
     )
     .await;
-		let look_res = look(username.clone(), state.clone()).await;
-		Ok(look_res)
+    let look_res = look(username.clone(), state.clone()).await;
+    Ok(look_res)
 }

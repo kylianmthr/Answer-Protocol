@@ -8,6 +8,12 @@ use tokio::sync::{Mutex, mpsc};
 use validator::Validate;
 use validator::ValidationErrors;
 
+#[derive(Clone, PartialEq)]
+pub enum Turn {
+    Player,
+    Enemy,
+}
+
 #[derive(Clone, Validate)]
 pub struct Player {
     #[validate(length(min = 3, max = 20))]
@@ -19,6 +25,7 @@ pub struct Player {
     pub invitations: Vec<Group>,
     pub group: Option<String>,
     pub quests: Vec<PlayerQuest>,
+    pub combat_turn: Turn,
 }
 
 impl Player {
@@ -36,6 +43,7 @@ impl Player {
             invitations: Vec::new(),
             group: None,
             quests: Vec::new(),
+            combat_turn: Turn::Player,
         };
         player.validate()?;
         Ok(player)
@@ -163,8 +171,8 @@ impl WorldData {
 
 #[derive(Debug)]
 pub struct NpcState {
-    room: String,
-    hp: i32,
+    pub room: String,
+    pub hp: i32,
 }
 
 #[derive(Debug, Serialize)]

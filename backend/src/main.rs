@@ -3,6 +3,7 @@ mod state;
 use state::SharedState;
 mod server;
 use server::run_server;
+mod attack;
 mod broadcast;
 mod chat;
 mod client;
