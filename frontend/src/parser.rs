@@ -10,6 +10,7 @@ pub enum EventType {
     Join,
     Leave,
     Stats,
+    Combat,
 }
 
 pub enum ServerMessage {
@@ -63,6 +64,10 @@ pub fn parser(msg: &str) -> Result<ServerMessage, &str> {
                 }),
                 ["ROOM", "CHAT", rest @ ..] => Ok(ServerMessage::Evt {
                     evt_type: EventType::RoomChat,
+                    data: rest.join(" "),
+                }),
+                ["ROOM", "COMBAT", rest @ ..] => Ok(ServerMessage::Evt {
+                    evt_type: EventType::Combat,
                     data: rest.join(" "),
                 }),
                 ["GLOBAL", "CHAT", rest @ ..] => Ok(ServerMessage::Evt {

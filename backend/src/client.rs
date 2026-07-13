@@ -1,3 +1,5 @@
+use crate::attack::attack;
+use crate::attack::status;
 use crate::broadcast::broadcast_global;
 use crate::broadcast::broadcast_group;
 use crate::chat::chat_room;
@@ -78,6 +80,25 @@ async fn remove_player(username: &str, state: Arc<SharedState>) {
     let room = world_state.room.get_mut(player.room.as_str()).unwrap();
     room.players.retain(|p| p != username);
     players.remove(username);
+    drop(players);
+    drop(world_state);
+    let maxima: Vec<(String, i32)> = {
+        let world_data = state.world_data.lock().await;
+        world_data
+            .world
+            .npcs
+            .iter()
+            .map(|(id, npc)| (id.clone(), npc.hp))
+            .collect()
+    };
+    let mut world_state = state.world_state.lock().await;
+    for (id, max_hp) in maxima {
+        if let Some(npc) = world_state.npcs.get_mut(&id) {
+            if npc.hp <= 0 {
+                npc.hp = max_hp;
+            }
+        }
+    }
 }
 
 async fn handle_commands(
@@ -194,6 +215,18 @@ async fn handle_commands(
                             "QUESTS" => {
                                 write.write_all(format!("{}\n", get_quests(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send quests response");
                             }
+                            "ATTACK" => {
+                                if args.is_empty() {
+                                    write.write_all(b"ERR 400 MISSING_NPC_NAME\n").await.expect("Can't send missing NPC name error");
+                                    continue;
+                                }
+                                let res = attack(username.clone(), args, Arc::clone(&state)).await;
+                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send attack response");
+                            },
+                            "STATUS" => {
+                                let res = status(username.clone(), Arc::clone(&state)).await;
+                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send status response");
+                            },
                             "GROUP" => {
                                 let arg = args.splitn(2, ' ').next().unwrap_or("");
                                 match arg {
