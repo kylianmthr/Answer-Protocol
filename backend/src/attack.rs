@@ -4,22 +4,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use crate::broadcast::broadcast_room;
 use crate::state::{SharedState, Turn};
 
-// Combat design (see README "Combat System"):
-// Combat is turn-based: each ATTACK resolves exactly ONE action. On the player's
-// turn the player strikes; the turn then flips to the enemy, whose retaliation
-// is resolved by the next ATTACK. This keeps the two attacks separate instead of
-// a simultaneous exchange. Damage is random and the ranges are close enough that
-// a fight from full HP is a real coin-flip. On death the player respawns at full
-// HP in the starting room and the enemy is restored to full, so every attempt is
-// a fresh duel.
 const PLAYER_MIN: i32 = 20;
 const PLAYER_MAX: i32 = 30;
 const NPC_MIN: i32 = 20;
 const NPC_MAX: i32 = 30;
 pub const MAX_HP: i32 = 100;
 
-// dependency-free inclusive random roll (time-seeded xorshift, salted so two
-// rolls in the same call don't collide)
 fn roll(min: i32, max: i32, salt: u64) -> i32 {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -53,7 +43,6 @@ fn combat_json(
 }
 
 pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedState>) -> String {
-    // current room of the attacker
     let player_room = {
         let players = state.players.lock().await;
         match players.get(&username) {
@@ -61,8 +50,6 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
             None => return "ERR 404 NPC_NOT_FOUND".to_string(),
         }
     };
-
-    // resolve the target NPC (by id or display name) inside the player's room
     let (npc_id, hostile, initial_room, npc_max_hp) = {
         let world_data = state.world_data.lock().await;
         let resolved = world_data.world.npcs.iter().find(|(id, npc)| {
@@ -82,8 +69,6 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
     if !hostile {
         return "ERR 405 NPC_NOT_HOSTILE".to_string();
     }
-
-    // whose turn is it? read (and don't yet flip) the player's combat turn
     let turn = {
         let players = state.players.lock().await;
         players
@@ -93,7 +78,6 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
     };
 
     if turn == Turn::Player {
-        // --- PLAYER'S TURN: strike the enemy ---
         let player_dmg = roll(PLAYER_MIN, PLAYER_MAX, 1);
         let target_hp = {
             let mut world_state = state.world_state.lock().await;
@@ -107,7 +91,6 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
         };
 
         if target_hp <= 0 {
-            // enemy down: combat over, reset the turn for the next fight
             {
                 let mut players = state.players.lock().await;
                 players.get_mut(&username).unwrap().combat_turn = Turn::Player;
@@ -123,19 +106,22 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
                 combat_json("player", attacker_hp, 0, player_dmg, "victory", &npc_id)
             );
         }
-
-        // enemy survives: it's now the enemy's turn
         {
             let mut players = state.players.lock().await;
             players.get_mut(&username).unwrap().combat_turn = Turn::Enemy;
         }
         return format!(
             "OK {}",
-            combat_json("player", attacker_hp, target_hp, player_dmg, "combat", &npc_id)
+            combat_json(
+                "player",
+                attacker_hp,
+                target_hp,
+                player_dmg,
+                "combat",
+                &npc_id
+            )
         );
     }
-
-    // --- ENEMY'S TURN: it strikes back ---
     let enemy_dmg = roll(NPC_MIN, NPC_MAX, 2);
     let attacker_hp = {
         let mut players = state.players.lock().await;
@@ -149,19 +135,23 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
     };
 
     if attacker_hp > 0 {
-        // back to the player's turn
         {
             let mut players = state.players.lock().await;
             players.get_mut(&username).unwrap().combat_turn = Turn::Player;
         }
         return format!(
             "OK {}",
-            combat_json("enemy", attacker_hp, target_hp, enemy_dmg, "combat", &npc_id)
+            combat_json(
+                "enemy",
+                attacker_hp,
+                target_hp,
+                enemy_dmg,
+                "combat",
+                &npc_id
+            )
         );
     }
 
-    // player down: restore the enemy and respawn the player, full HP, at the
-    // starting room so the duel can be retried from scratch
     {
         let mut world_state = state.world_state.lock().await;
         world_state.npcs.get_mut(&npc_id).unwrap().hp = npc_max_hp;
