@@ -133,7 +133,8 @@ impl CommandButton {
                             ui.label("Inventory empty");
                         } else {
                             for item in inventory {
-                                if Self::click_button(ui, item, true) {
+                                let label_str = item.split(".").last().unwrap_or(item);
+                                if Self::click_button(ui, label_str, true) {
                                     tx_outcomming.send(format!("DROP {}", item)).unwrap();
                                 }
                             }
@@ -152,7 +153,8 @@ impl CommandButton {
                             ui.label("No one to fight");
                         } else {
                             for npc in available_npcs {
-                                if Self::click_button(ui, npc, true) {
+                                let label_npc = npc.split(".").last().unwrap_or(npc);
+                                if Self::click_button(ui, label_npc, true) {
                                     tx_outcomming.send(format!("ATTACK {}", npc)).unwrap();
                                 }
                             }
@@ -178,8 +180,9 @@ impl CommandButton {
                             ui.label("No one here");
                         } else {
                             for npc in available_npcs {
+                                let label_npc = npc.split(".").last().unwrap_or(npc);
                                 if Self::click_button(ui, npc, true) {
-                                    tx_outcomming.send(format!("TALK {}", npc)).unwrap();
+                                    tx_outcomming.send(format!("TALK {}", label_npc)).unwrap();
                                     self.current_action = None;
                                 }
                             }
@@ -222,7 +225,8 @@ impl CommandButton {
                             ui.label("No items here");
                         } else {
                             for item in available_items {
-                                if Self::click_button(ui, item, true) {
+                                let label_str = item.split(".").last().unwrap_or(item);
+                                if Self::click_button(ui, label_str, true) {
                                     tx_outcomming.send(format!("TAKE {}", item)).unwrap();
                                 }
                             }
