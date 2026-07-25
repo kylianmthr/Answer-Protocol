@@ -10,11 +10,11 @@ pub enum StateAction {
     QUIT,
 }
 
-pub struct ComandeButton {
+pub struct CommandButton {
     current_action: Option<StateAction>,
 }
 
-impl ComandeButton {
+impl CommandButton {
     pub fn macthing_action() -> Self {
         Self {
             current_action: None,

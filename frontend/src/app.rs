@@ -1,7 +1,7 @@
 use crate::parser::EventType;
 use crate::parser::ServerMessage;
 use crate::{
-    action_game::ComandeButton,
+    action_game::CommandButton,
     room::state_mod::{GameScreen, StateRoom},
 };
 use eframe::egui;
@@ -20,6 +20,7 @@ pub struct MyTap {
     state_items: Vec<String>,
     state_npcs: Vec<String>,
     state_inventory: Vec<String>,
+    server_logs: Vec<String>,
 }
 
 impl MyTap {
@@ -38,6 +39,7 @@ impl MyTap {
             state_items: Vec::new(),
             state_npcs: Vec::new(),
             state_inventory: Vec::new(),
+            server_logs: Vec::new(),
         }
     }
 }
@@ -305,7 +307,7 @@ impl MyTap {
                     .color(egui::Color32::from_rgb(180, 190, 210)),
             );
             ui.add_space(24.0);
-            if ComandeButton::click_button(ui, "ATTACK", combat.can_act) {
+            if CommandButton::click_button(ui, "ATTACK", combat.can_act) {
                 tx.send(format!("ATTACK {}", combat.enemy)).unwrap();
                 combat.can_act = false;
                 combat.last_msg = "You strike...".to_string();
@@ -330,7 +332,7 @@ impl MyTap {
                     .color(egui::Color32::from_rgb(205, 214, 244)),
             );
             ui.add_space(40.0);
-            if ComandeButton::click_button(ui, "QUIT", true) {
+            if CommandButton::click_button(ui, "QUIT", true) {
                 tx.send("QUIT".to_string()).unwrap();
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
@@ -508,6 +510,23 @@ impl MyTap {
     }
 }
 
+impl MyTap {
+    fn show_logs(logs_serveur: &[String], ui: &mut egui::Ui) {
+        for logs in logs_serveur {
+            let color_log = if logs.starts_with("[ERR") {
+                egui::Color32::from_rgb(210, 15, 57)
+            } else if logs.starts_with("[Ok") {
+                egui::Color32::from_rgb(166, 218, 169)
+            } else if logs.starts_with("[EVT") {
+                egui::Color32::from_rgb(23, 146, 153)
+            } else {
+                egui::Color32::WHITE
+            };
+            ui.label(egui::RichText::new(logs).size(11.0).color(color_log));
+        }
+    }
+}
+
 impl eframe::App for MyTap {
     fn ui(&mut self, ctx: &mut Ui, _frame: &mut eframe::Frame) {
         self.toasts.show(ctx);
@@ -517,6 +536,18 @@ impl eframe::App for MyTap {
                 .min_size(300.0)
                 .show_inside(ctx, |ui| {
                     ui.heading("Chat");
+
+                    egui::Panel::bottom("logs")
+                        .min_size(150.0)
+                        .show_inside(ui, |ui| {
+                            ui.heading("Logs:");
+                            egui::ScrollArea::vertical()
+                                .auto_shrink([false, false])
+                                .stick_to_bottom(true)
+                                .show(ui, |ui| {
+                                    Self::show_logs(&self.server_logs, ui);
+                                })
+                        });
 
                     egui::Panel::bottom("chat_input").show_inside(ui, |ui| {
                         Self::draw_chat(ui, &mut self.chat_page, &tx);
@@ -606,7 +637,7 @@ impl eframe::App for MyTap {
                 let room = self.pending_room.take().unwrap_or(StateRoom::Room1);
                 transition = Some(Screen::GameView(GameScreen {
                     current_room: room,
-                    button_mod: ComandeButton::macthing_action(),
+                    button_mod: CommandButton::macthing_action(),
                 }));
             }
         }
@@ -615,6 +646,7 @@ impl eframe::App for MyTap {
             while let Ok(msg) = self.rx_incoming.try_recv() {
                 match msg {
                     ServerMessage::Ok(reponse) => {
+                        self.server_logs.push(format!("[Ok] {}", reponse));
                         if let Some(exits) = json_array(&reponse, "exits_rooms") {
                             self.state_exits = exits;
                         }
