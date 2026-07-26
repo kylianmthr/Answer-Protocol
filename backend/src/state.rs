@@ -55,13 +55,15 @@ impl Player {
 #[derive(Clone, Validate)]
 pub struct Group {
     pub id: String,
+    pub leader: String,
     pub members: Vec<Player>,
 }
 
 impl Group {
-    pub fn new(id: &str) -> Self {
+    pub fn new(id: &str, leader: &str) -> Self {
         Self {
             id: id.to_string(),
+            leader: leader.to_string(),
             members: Vec::new(),
         }
     }

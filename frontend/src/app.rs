@@ -123,8 +123,8 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         pattern: "/group create",
         protocol: "GROUP CREATE",
-        takes_arg: true,
-        hint: "Create a group.",
+        takes_arg: false,
+        hint: "Create a group (the server returns its id).",
     },
     SlashCommand {
         pattern: "/group invite",
@@ -136,7 +136,7 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
         pattern: "/group join",
         protocol: "GROUP JOIN",
         takes_arg: true,
-        hint: "Join a group.",
+        hint: "Join a group by its leader's name.",
     },
     SlashCommand {
         pattern: "/group leave",
