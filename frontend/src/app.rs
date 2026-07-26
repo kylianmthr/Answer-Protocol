@@ -22,6 +22,7 @@ pub struct MyTap {
     state_inventory: Vec<String>,
     server_logs: Vec<String>,
     pending_talk: bool,
+    pending_group_leave: bool,
 }
 
 impl MyTap {
@@ -42,6 +43,7 @@ impl MyTap {
             state_inventory: Vec::new(),
             server_logs: Vec::new(),
             pending_talk: false,
+            pending_group_leave: false,
         }
     }
 }
@@ -139,7 +141,7 @@ const SLASH_COMMANDS: &[SlashCommand] = &[
     SlashCommand {
         pattern: "/group leave",
         protocol: "GROUP LEAVE",
-        takes_arg: true,
+        takes_arg: false,
         hint: "Leave a group.",
     },
 ];
@@ -417,6 +419,7 @@ impl MyTap {
         ui: &mut egui::Ui,
         chat_page: &mut ChatPage,
         tx: &std::sync::mpsc::Sender<String>,
+        pending_group_leave: &mut bool,
     ) {
         // ui.vertical_centered(|ui| {
         //     ui.scope(|ui| {
@@ -498,6 +501,9 @@ impl MyTap {
                 if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     if !chat_page.message_input.trim().is_empty() {
                         if let Some(protocol_cmd) = resolve_command(&chat_page.message_input) {
+                            if protocol_cmd == "GROUP LEAVE" {
+                                *pending_group_leave = true;
+                            }
                             tx.send(protocol_cmd).unwrap();
                         } else if chat_page.message_input.starts_with('/') {
                             // commande inconnue, idéalement un toast d'erreur ici
@@ -571,7 +577,7 @@ impl eframe::App for MyTap {
                         });
 
                     egui::Panel::bottom("chat_input").show_inside(ui, |ui| {
-                        Self::draw_chat(ui, &mut self.chat_page, &tx);
+                        Self::draw_chat(ui, &mut self.chat_page, &tx, &mut self.pending_group_leave);
                     });
 
                     egui::Panel::top("scope_select").show_inside(ui, |ui| {
@@ -674,6 +680,11 @@ impl eframe::App for MyTap {
                             if !reponse.is_empty() {
                                 self.toasts.info(reponse.clone());
                             }
+                            continue;
+                        }
+                        if self.pending_group_leave {
+                            self.pending_group_leave = false;
+                            self.toasts.info("You left the group".to_string());
                             continue;
                         }
                         if reponse.starts_with("room=") {
@@ -820,6 +831,9 @@ impl eframe::App for MyTap {
                         EventType::Join => {
                             self.toasts.info(format!("Someone join the group {}", data));
                         }
+                        EventType::Leave => {
+                            self.toasts.info(format!("{} left the group", data));
+                        }
                         EventType::PresenceEnter => {
                             self.toasts.info(format!("{} enter the room", data));
                         }
@@ -834,6 +848,7 @@ impl eframe::App for MyTap {
 
                     ServerMessage::Err { code, message } => {
                         self.pending_talk = false;
+                        self.pending_group_leave = false;
                         self.toasts.error(format!("Error {}: {}", code, message));
                     }
                 }
@@ -896,6 +911,7 @@ impl eframe::App for MyTap {
                     }
                     ServerMessage::Err { code, message } => {
                         self.pending_talk = false;
+                        self.pending_group_leave = false;
                         self.toasts.error(format!("Error {}: {}", code, message));
                     }
                     _ => {}
