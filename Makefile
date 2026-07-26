@@ -10,7 +10,7 @@ all:
 	& wait
 
 install:
-	cd backend && $(CARGO_INSTALL) $(PORT) $(MAP_PATH) & \
+	cd backend && $(CARGO_INSTALL) & \
 	cd frontend && $(CARGO_INSTALL)
 
 run-server:
