@@ -26,6 +26,7 @@ world:
       description: "Une boutique poussiéreuse remplie de boîtes fines empilées jusqu'au plafond."
       exits:
         west: "loc.square"
+        south: "loc.forest"
       items: ["item.wand", "item.cauldron"]
       npcs: ["npc.marchand"]
 
@@ -35,6 +36,7 @@ world:
       exits:
         north: "loc.square"
         east: "loc.swamp"
+        west: "loc.shop"
       items: ["item.wood"]
       npcs: ["npc.dryade"]
 

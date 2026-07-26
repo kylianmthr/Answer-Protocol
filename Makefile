@@ -1,3 +1,4 @@
+CARGO_INSTALL = cargo build
 CARGO_EXEC = cargo run
 MAP_PATH = test.yaml
 PORT = 2000
@@ -8,19 +9,27 @@ all:
 	cd frontend && cargo run $(PORT) \
 	& wait
 
-serveur:
+install:
+	cd backend && $(CARGO_INSTALL) $(PORT) $(MAP_PATH) & \
+	cd frontend && $(CARGO_INSTALL)
+
+run-server:
 	cd backend && $(CARGO_EXEC) $(PORT) $(MAP_PATH)
 
-client-gui:
+run-client-gui:
 	cd frontend && $(CARGO_EXEC) $(PORT)
 
-client-cli:
+run-client:
 	nc localhost $(PORT)
 
-fclean:
+clean:
 	rm -rf backend/target || true \
 	frontend/target || true
 
-re: fclean all
+lint:
+	cd backend && cargo clippy
+	cd frontend && cargo clippy
 
-.PHONY: all install serveur client-gui fclean re
+re: clean all
+
+.PHONY: all install run-server run-client-gui run-client clean re
