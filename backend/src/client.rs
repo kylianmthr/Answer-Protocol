@@ -10,6 +10,7 @@ use crate::items::take;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
 use crate::quest;
+use crate::logs_format;
 use crate::quest::get_quests;
 use crate::quest::quest;
 use crate::state::Player;
@@ -116,6 +117,7 @@ async fn handle_commands(
                         let mut parts = line.splitn(2, ' ');
                         let command = parts.next().unwrap_or("");
                         let args = parts.next().unwrap_or("").trim();
+						logs_format::log_output("INFO", &format!("COMMAND Player={} cmd={} args={}", username, command, args));
                         match command {
                             "LOOK" => {
                                 write.write_all(format!("OK {}\n", look(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send look response");
@@ -131,7 +133,8 @@ async fn handle_commands(
                                 }
                             },
                             "QUIT" => {
-                                write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
+								write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
+								logs_format::log_output("INFO", &format!("COMMAND Player={} cmd={} args={}", username, command, args));
                                 break;
                             },
                             "CHAT" => {
@@ -283,10 +286,12 @@ async fn handle_commands(
                         }
                     },
                     Ok(None) => {
-                        println!("Client {} disconnected", username);
+						logs_format::log_output("INFO", &format!("DISCONNECT Player={}", username));
+						// println!("Client {} disconnected", username);
                         break;
                     },
                     Err(e) => {
+						logs_format::log_output("INFO", &format!("DISCONNECT Player={}", username));
                         println!("Error reading from {}: {}", username, e);
                         break;
                     }

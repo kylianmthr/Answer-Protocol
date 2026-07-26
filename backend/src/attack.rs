@@ -3,7 +3,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::broadcast::broadcast_room;
 use crate::state::{SharedState, Turn};
-
 const PLAYER_MIN: i32 = 20;
 const PLAYER_MAX: i32 = 30;
 const NPC_MIN: i32 = 20;
