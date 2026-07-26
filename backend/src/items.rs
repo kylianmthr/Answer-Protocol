@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::state::{SharedState};
 use crate::logs_format::log_output;
+use serde_json;
 
 pub async fn take(
     player_name: String,
@@ -46,7 +47,9 @@ pub async fn take(
     } else {
         room.items.retain(|item| item != &item_name_or_id);
         player.inventory.push(item_name_or_id.clone());
-		log_output("INFO", &format!("TAKEN Player={} ITEM_ID={} ROOM_ID={}", player_name, item_name_or_id, room_id));
+		log_output("INFO", "TAKEN", serde_json::json!({
+							"player": player_name, "ITEM_ID": item_name_or_id, "ROOM_ID": room_id
+						}));
 		Ok(format!("OK taken={}", item_name_or_id))
     }
 }
@@ -74,7 +77,9 @@ pub async fn drop(
 
     player.inventory.retain(|item| item != &item_name_or_id);
     room.items.push(item_name_or_id.clone());
-	log_output("INFO", &format!("DROPED Player={} ITEM_ID={} ROOM_ID={}", player_name, item_name_or_id, room_id));
+	log_output("INFO", "DROPED", serde_json::json!({
+							"player": player_name, "ITEM_ID": item_name_or_id, "ROOM_ID": room_id
+						}));
     Ok(format!("OK dropped={}", item_name_or_id))
 }
 
@@ -83,6 +88,8 @@ pub async fn inventory(player_name: String, state: Arc<SharedState>) -> Result<S
     let player = players
         .get(&player_name)
         .ok_or_else(|| format!("Player '{}' not found", player_name))?;
-	log_output("INFO", &format!("INVENTORY Player={}", player_name));
+	log_output("INFO", "INVENTORY", serde_json::json!({
+							"player": player_name
+						}));
 	Ok(format!("OK inventory={:?}", player.inventory))
 }

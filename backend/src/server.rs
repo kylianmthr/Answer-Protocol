@@ -15,7 +15,9 @@ pub async fn run_server(port: u16, state: Arc<SharedState>) {
             .accept()
             .await
             .expect("Could not accept connection");
-		log_output("INFO", &format!("CONNECT_IP={}", addr));
+		log_output("INFO", "IP", serde_json::json!({
+							"CONNECT_ID=": addr
+						}));
         let state_clone = Arc::clone(&state);
         tokio::spawn(async move {
             handle_client(socket, state_clone).await;

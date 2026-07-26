@@ -9,7 +9,6 @@ use crate::group::group_invite;
 use crate::items::take;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
-use crate::quest;
 use crate::logs_format;
 use crate::quest::get_quests;
 use crate::quest::quest;
@@ -22,8 +21,9 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc;
+use serde_json;
 
 #[derive(Debug, Error)]
 enum UserError {
@@ -117,7 +117,9 @@ async fn handle_commands(
                         let mut parts = line.splitn(2, ' ');
                         let command = parts.next().unwrap_or("");
                         let args = parts.next().unwrap_or("").trim();
-						logs_format::log_output("INFO", &format!("COMMAND Player={} cmd={} args={}", username, command, args));
+						logs_format::log_output("INFO", "COMMAND", serde_json::json!({
+							"player": username, "cmd": command, "arg": args
+						}));
                         match command {
                             "LOOK" => {
                                 write.write_all(format!("OK {}\n", look(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send look response");
@@ -134,7 +136,9 @@ async fn handle_commands(
                             },
                             "QUIT" => {
 								write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
-								logs_format::log_output("INFO", &format!("COMMAND Player={} cmd={} args={}", username, command, args));
+								logs_format::log_output("INFO", "QUIT", serde_json::json!({
+								"player": username, "cmd": command, "arg": args
+								}));
                                 break;
                             },
                             "CHAT" => {
@@ -281,17 +285,22 @@ async fn handle_commands(
                                 }
                             },
                             _ => {
-                                println!("Unknown command from {}: {}", username, command);
+                                	logs_format::log_output("WARN", "UNKNOWN_COMMAND", serde_json::json!({
+									"player": username, "cmd": command
+								}));
                             }
                         }
                     },
                     Ok(None) => {
-						logs_format::log_output("INFO", &format!("DISCONNECT Player={}", username));
-						// println!("Client {} disconnected", username);
+						logs_format::log_output("INFO", "DISCONNECT", serde_json::json!({
+							"player": username
+						}));
                         break;
                     },
                     Err(e) => {
-						logs_format::log_output("INFO", &format!("DISCONNECT Player={}", username));
+						logs_format::log_output("ERROR", "READ_ERROR", serde_json::json!({
+							"player": username, "reason": e.to_string()
+						}));
                         println!("Error reading from {}: {}", username, e);
                         break;
                     }
@@ -307,10 +316,10 @@ async fn handle_commands(
     remove_player(&username, Arc::clone(&state)).await;
 }
 
-async fn print_debug_state(state: Arc<SharedState>) {
-    let world_state = state.world_state.lock().await;
-    println!("{:#?}", world_state);
-}
+// async fn print_debug_state(state: Arc<SharedState>) {
+//     let world_state = state.world_state.lock().await;
+//     println!("{:#?}", world_state);
+// }
 
 pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
     println!("New client connected. Need to authenticate");
