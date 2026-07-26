@@ -4,7 +4,7 @@
 
 ## Description
 
-TAP is a shared-world retro text adventure: a small multiplayer MUD (Multi-User Dungeon) built around a TCP server implementing the **RFC 42TAP** line-based protocol, with two clients bringing the world to life — a GUI client (egui) and, eventually, a CLI client.
+TAP is a shared-world retro text adventure: a small multiplayer MUD (Multi-User Dungeon) built around a TCP server implementing the **RFC 42TAP** line-based protocol, with two clients bringing the world to life — a GUI client (egui) and a CLI client.
 
 Multiple players connect to the same persistent world, move between rooms, chat (globally, per room, or per group), fight hostile NPCs, complete quests, and manage their inventory. The server is written in Rust with Tokio (async, one task per connection), and the world (rooms, items, NPCs, quests) is loaded from a YAML file at startup.
 
@@ -12,13 +12,14 @@ The goal of the project was to implement the full mandatory command set of RFC 4
 
 ## Instructions
 
-The project uses two independent Rust crates (`backend/` for the server, `frontend/` for the GUI client), each built with Cargo, orchestrated by a root `Makefile`. See the **Building and Running** section below for the full list of commands.
+The project uses three independent Rust crates (`backend/` for the server, `frontend/` for the GUI client, `client_cli/` for the CLI client), each built with Cargo, orchestrated by a root `Makefile`. See the **Building and Running** section below for the full list of commands.
 
 Quick start:
 ```bash
 make install
 make run-server        # terminal 1
-make run-client-gui     # terminal 2
+make run-client-gui     # terminal 2, or:
+make run-client         # terminal 2 (CLI instead of GUI)
 ```
 
 ## Resources
@@ -58,7 +59,7 @@ Documented deviations and extensions:
 - **`GROUP CREATE` / `GROUP JOIN` identify groups by an arbitrary name chosen by the creator, not by the leader's username as RFC 5.3.1/5.3.3 suggest.** We chose this deliberately: it lets a player create more than one independent group over a session and gives groups memorable names (e.g. `raid1`), whereas the RFC's leader-name scheme limits a player to leading a single group for their entire connection (since the group ID would be tied 1:1 to their username). `GROUP INVITE`, `GROUP JOIN`, and `GROUP LEAVE` are otherwise unaffected — they resolve a group purely by whatever key was used at creation, so the mechanism works identically either way.
 - **Additional error codes beyond the RFC's base table**, all still respecting the ABNF's `3DIGIT` error-code requirement: `400` for malformed/incomplete commands not covered by the RFC (`MISSING_NPC_NAME`, `MISSING_ITEM_NAME`, `UNKNOWN_COMMAND`, `UNKNOWN_SCOPE`, `UNKNOWN_GROUP_COMMAND`), and `407`/`409` for combat/inventory edge cases (`NOT_IN_COMBAT`, `ITEM_NOT_USABLE`) introduced by our combat and item-use extensions.
 - **`EVT STATS players=<count>`** (RFC section 6.2.4) is broadcast to all connected players whenever a player connects or disconnects, so every client can keep a live server-wide player counter without polling.
-- **Item name resolution is an exact, case-sensitive match** against either the canonical ID or the display name (`TAKE item.herbs` and `TAKE Herbes Médicinales` both work). The RFC only says resources "MAY be identified using either" an ID or a display name, without specifying case-sensitivity, so this is a clarification rather than a deviation.
+- **`TAKE`/`DROP` currently resolve items by canonical ID only** (`TAKE item.herbs`), not yet by display name. NPC-facing commands (`TALK`, `QUEST`) already resolve by either ID or display name. The RFC only says resources "MAY be identified using either", so ID-only resolution for items is a known gap rather than a hard non-conformance, and is the next planned improvement to `items.rs`.
 
 ## Combat System
 
@@ -134,17 +135,19 @@ Build system: **Cargo**, orchestrated by the root `Makefile`.
 
 | Command | Effect |
 |---|---|
-| `make install` | Builds (`cargo build`) both the `backend` and `frontend` crates, fetching dependencies. |
+| `make install` | Builds (`cargo build`) the `backend`, `frontend`, and `client_cli` crates, fetching dependencies. |
 | `make run-server` | Runs the server: `cd backend && cargo run <PORT> <MAP_PATH>` (defaults: `PORT=2000`, `MAP_PATH=test.yaml`). |
 | `make run-client-gui` | Runs the GUI client: `cd frontend && cargo run <PORT>`. |
-| `make run-client` | Connects to the server with `nc localhost <PORT>` — a dedicated CLI client is not implemented yet, so this is currently the way to interact with the server as raw text (send lines exactly matching RFC 42TAP syntax, e.g. `CONNECT alice`). |
-| `make lint` | Runs `cargo clippy` on both crates. |
-| `make clean` | Removes both crates' `target/` build directories. |
-| `make all` | Starts the server and the GUI client together. |
+| `make run-client` | Runs the CLI client: `cd client_cli && cargo run <PORT>`. Prompts interactively for the server address (e.g. `127.0.0.1:2000`), then behaves as a direct pass-through to the server. |
+| `make lint` | Runs `cargo clippy` on all three crates. |
+| `make clean` | Removes all three crates' `target/` build directories. |
+| `make all` | Pre-builds and starts the server and the GUI client together (server first, with a short delay before the GUI connects, to avoid a connection-refused race on a cold build). |
+
+**CLI Command Interface Choice:** the CLI (`client_cli/`) implements the first option offered by the subject — it sends the user's input **directly** to the server using raw RFC 42TAP syntax (e.g. typing `CONNECT alice` or `MOVE north` verbatim), with no translation layer. Reading from the socket and reading from stdin run as two independent Tokio tasks (`tokio::select!`), so the client keeps printing incoming `EVT`/`OK`/`ERR` lines in real time even while idle on user input.
 
 ## Testing
 
-There is no automated test suite; the project was tested manually against a running server, in two complementary ways:
+There is no automated test suite; the project was tested manually against a running server, in several complementary ways:
 
 **Protocol-level testing (`nc`)** — connect directly and send raw commands to verify exact response formats and logs, e.g.:
 ```bash
@@ -153,5 +156,7 @@ printf 'CONNECT alice\nLOOK\nMOVE south\nTAKE item.herbs\nQUEST npc.taverniere\n
 The server's stdout is checked in parallel to confirm the matching `COMMAND`/`RESPONSE` log pairs (and `TAKEN`/`QUEST_PROG`/`COMBAT_RESULT` where relevant) appear.
 
 **Multiplayer / GUI testing** — run `make run-server` once, then launch several `make run-client-gui` instances against the same port. This verifies: room presence events (`EVT ROOM PRESENCE ENTER/LEAVE`) appear on the other clients when a player moves, chat messages reach the right scope (room/group/global), the server-wide player counter updates on every connect/disconnect, and group invites/joins/leaves are visible to all members.
+
+**CLI responsiveness testing** — with one `make run-client` connected and idle (no input typed), connect a second client (GUI, CLI, or `nc`) to the same server: the first CLI must print the resulting `EVT STATS players=<n>` (and any room presence event, if in the same room) immediately, without needing to press Enter itself — confirming the read and write loops are truly independent.
 
 **Combat and quests** — from the GUI or via `nc`, move to `loc.crypt` and `ATTACK npc.necromancien` repeatedly to exercise the full turn-based loop (including `DEFEND`, `FLEE`, and dying/respawning at 0 HP); talk to `npc.taverniere` or `npc.marchand`, pick up their objective item, and call `QUEST <npc>` again to confirm reward distribution and the `completed` status.
