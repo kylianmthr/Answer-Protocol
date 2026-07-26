@@ -8,6 +8,7 @@ const PLAYER_MAX: i32 = 30;
 const NPC_MIN: i32 = 20;
 const NPC_MAX: i32 = 30;
 pub const MAX_HP: i32 = 100;
+pub const  RESPAWN: i32 = MAX_HP / 2;
 
 fn roll(min: i32, max: i32, salt: u64) -> i32 {
     let nanos = SystemTime::now()
@@ -159,7 +160,7 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
         let mut players = state.players.lock().await;
         let player = players.get_mut(&username).unwrap();
         let old = player.room.clone();
-        player.hp = MAX_HP;
+        player.hp = RESPAWN;
         player.room = initial_room.clone();
         player.combat_turn = Turn::Player;
         old
