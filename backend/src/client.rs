@@ -6,6 +6,7 @@ use crate::attack::use_item;
 use crate::broadcast::broadcast_global;
 use crate::broadcast::broadcast_group;
 use crate::chat::chat_room;
+use crate::flood_systeme::command_check_flooding;
 use crate::group::group_accept;
 use crate::group::group_create;
 use crate::group::group_invite;
@@ -159,6 +160,7 @@ async fn handle_commands(
                         logs_format::log_output("INFO", "COMMAND", serde_json::json!({
                             "player": username, "cmd": command, "arg": args
                         }));
+						command_check_flooding(&username, &state).await;
                         match command {
                             "LOOK" => {
                                 let response = format!("OK {}", look(username.clone(), Arc::clone(&state)).await);
