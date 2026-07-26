@@ -38,6 +38,7 @@ pub async fn move_cmd(
     current_room.players.retain(|p| p != &username);
     player.room = room.exits.get(direction.as_str()).unwrap().to_string();
     player.combat_turn = Turn::Player;
+    player.combat_target = None;
     drop(world_state);
     drop(players);
     broadcast_room(
