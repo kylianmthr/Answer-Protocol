@@ -26,7 +26,7 @@ pub struct MyTap {
     pending_talk: bool,
     pending_group_leave: bool,
 }
-
+#[warn(unreachable_patterns)]
 impl MyTap {
     pub fn new(
         rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
