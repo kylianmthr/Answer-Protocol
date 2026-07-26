@@ -9,7 +9,6 @@ use crate::group::group_invite;
 use crate::items::take;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
-use crate::quest;
 use crate::quest::get_quests;
 use crate::quest::quest;
 use crate::state::Player;
