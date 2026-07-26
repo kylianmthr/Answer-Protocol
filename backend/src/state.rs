@@ -253,6 +253,10 @@ impl SharedState {
                 &path,
             ))),
             groups: Mutex::new(HashMap::new()),
+			abuse: Mutex::new( track_flooding {
+				commands: HashMap::new(),
+				connected: HashMap::new(),
+			}),
         })
     }
 }
