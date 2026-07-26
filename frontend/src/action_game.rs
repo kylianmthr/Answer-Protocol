@@ -8,6 +8,7 @@ pub enum StateAction {
     QUEST,
     TAKE,
     QUIT,
+	WHO,
 }
 
 pub struct CommandButton {
@@ -48,7 +49,6 @@ impl CommandButton {
         available_items: &[String],
         available_npcs: &[String],
         inventory: &[String],
-        pending_talk: &mut bool,
     ) {
         let rect_screen = ui.max_rect();
         let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (60.0));
@@ -84,6 +84,9 @@ impl CommandButton {
                         if Self::click_button(ui, "TAKE", true) {
                             self.current_action = Some(StateAction::TAKE);
                         }
+						if Self::click_button(ui, "WHO", true) {
+							self.current_action = Some(StateAction::WHO);
+						}
                     })
                     .response
                 });
@@ -174,6 +177,10 @@ impl CommandButton {
                 tx_outcomming.send("LOOK".to_string()).unwrap();
                 self.current_action = None;
             }
+			Some(StateAction::WHO) => {
+				tx_outcomming.send("WHO".to_string()).unwrap();
+				self.current_action = None;
+			}
             Some(StateAction::TALK) => {
                 ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
@@ -181,9 +188,9 @@ impl CommandButton {
                             ui.label("No one here");
                         } else {
                             for npc in available_npcs {
+                                let label_npc = npc.split(".").last().unwrap_or(npc);
                                 if Self::click_button(ui, npc, true) {
-                                    tx_outcomming.send(format!("TALK {}", npc)).unwrap();
-                                    *pending_talk = true;
+                                    tx_outcomming.send(format!("TALK {}", label_npc)).unwrap();
                                     self.current_action = None;
                                 }
                             }

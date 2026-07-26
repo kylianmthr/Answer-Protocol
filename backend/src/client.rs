@@ -6,6 +6,7 @@ use crate::attack::use_item;
 use crate::broadcast::broadcast_global;
 use crate::broadcast::broadcast_group;
 use crate::chat::chat_room;
+use crate::flood_systeme::command_check_flooding;
 use crate::group::group_create;
 use crate::group::group_invite;
 use crate::group::group_join;
@@ -13,6 +14,7 @@ use crate::group::group_leave;
 use crate::items::take;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
+use crate::logs_format;
 use crate::quest::get_quests;
 use crate::quest::quest;
 use crate::state::Player;
@@ -24,8 +26,11 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, Lines};
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
-use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc;
+use serde_json;
+
+const UNAUTHENTICATED: &str = "unauthenticated";
 
 #[derive(Debug, Error)]
 enum UserError {
@@ -51,11 +56,33 @@ fn group_err_line(e: &str) -> String {
     }
 }
 
+async fn log_format(write: &mut OwnedWriteHalf, player: &str, response: &str) -> std::io::Result<()> {
+    let level = if response.starts_with("ERR") { "WARN" } else { "INFO" };
+    logs_format::log_output(
+        level,
+        "RESPONSE",
+        serde_json::json!({
+            "player": player,
+            "response": response,
+        }),
+    );
+    write.write_all(format!("{}\n", response).as_bytes()).await
+}
+
 async fn verify_authentication(
     line: Option<String>,
     state: Arc<SharedState>,
 ) -> Result<String, UserError> {
     let line = line.ok_or(UserError::InvalidRead)?;
+    logs_format::log_output(
+        "INFO",
+        "COMMAND",
+        serde_json::json!({
+            "player": UNAUTHENTICATED,
+            "cmd": "CONNECT",
+            "line": line,
+        }),
+    );
     if let Some(username) = line.strip_prefix("CONNECT ") {
         if username.trim().is_empty() {
             return Err(UserError::InvalidUsername);
@@ -84,7 +111,6 @@ async fn add_player(
     let player = Player::new(&username, world_data.world.initial_room.as_str(), tx)?;
     players.insert(username.clone(), player.clone());
     initial_room_state.players.push(username.clone());
-    //println!("{:#?}", initial_room_state);
     Ok(())
 }
 
@@ -116,13 +142,20 @@ async fn remove_player(username: &str, state: Arc<SharedState>) {
     }
 }
 
+async fn get_stats(state: &Arc<SharedState>) {
+	let count_trafic = state.players.lock().await.len();
+	broadcast_global(&format!("EVT STATS players={}", count_trafic), Arc::clone(state)).await;
+}
+
 async fn handle_commands(
     mut lines: Lines<BufReader<OwnedReadHalf>>,
     mut write: OwnedWriteHalf,
     mut rx: mpsc::UnboundedReceiver<String>,
     username: String,
+    ip: String,
     state: Arc<SharedState>,
 ) {
+    let mut reason = "unknown";
     loop {
         tokio::select! {
             line = lines.next_line() => {
@@ -131,37 +164,44 @@ async fn handle_commands(
                         let mut parts = line.splitn(2, ' ');
                         let command = parts.next().unwrap_or("");
                         let args = parts.next().unwrap_or("").trim();
+                        logs_format::log_output("INFO", "COMMAND", serde_json::json!({
+                            "player": username, "cmd": command, "arg": args
+                        }));
+						command_check_flooding(&username, &state).await;
                         match command {
                             "LOOK" => {
-                                write.write_all(format!("OK {}\n", look(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send look response");
+                                let response = format!("OK {}", look(username.clone(), Arc::clone(&state)).await);
+                                log_format(&mut write, &username, &response).await.expect("Can't send look response");
                             },
                             "MOVE" => {
                                 match move_cmd(username.clone(), args.to_string(), Arc::clone(&state)).await {
                                     Ok(new_room) => {
-                                        write.write_all(format!("OK room={}\n", new_room).as_bytes()).await.expect("Can't send move response");
+                                        let response = format!("OK room={}", new_room);
+                                        log_format(&mut write, &username, &response).await.expect("Can't send move response");
                                     },
                                     Err(e) => {
-                                        write.write_all(format!("ERR {}\n", e).as_bytes()).await.expect("Can't send move error response");
+                                        let response = format!("ERR {}", e);
+                                        log_format(&mut write, &username, &response).await.expect("Can't send move error response");
                                     }
                                 }
                             },
                             "QUIT" => {
-                                write.write_all(b"OK bye\n").await.expect("Can't send goodbye message");
+                                log_format(&mut write, &username, "OK bye").await.expect("Can't send goodbye message");
+                                reason = "quit";
                                 break;
                             },
                             "CHAT" => {
                                 let scope = args.splitn(2, ' ').next().unwrap_or("");
-                                //println!("Chat command with scope: {}", scope);
                                 match scope {
                                     "ROOM" => {
                                         let message = args.strip_prefix("ROOM ").unwrap_or("").trim();
                                         chat_room(message.to_string(), username.clone(), Arc::clone(&state)).await;
-                                        write.write_all(b"OK\n").await.expect("Can't send chat response");
+                                        log_format(&mut write, &username, "OK").await.expect("Can't send chat response");
                                     },
                                     "GLOBAL" => {
                                         let message = args.strip_prefix("GLOBAL ").unwrap_or("").trim();
                                         broadcast_global(format!("EVT GLOBAL CHAT {} {}", username, message).as_str(), Arc::clone(&state)).await;
-                                        write.write_all(b"OK\n").await.expect("Can't send chat response");
+                                        log_format(&mut write, &username, "OK").await.expect("Can't send chat response");
                                     },
                                     "GROUP" => {
                                         let message = args.strip_prefix("GROUP ").unwrap_or("").trim();
@@ -169,97 +209,100 @@ async fn handle_commands(
                                         let group_id = players.get(&username).and_then(|player| player.group.clone());
                                         drop(players);
                                         broadcast_group(group_id.as_deref().unwrap_or(""), format!("EVT GROUP CHAT {} {}", username, message).as_str(), Arc::clone(&state)).await;
-                                        write.write_all(b"OK\n").await.expect("Can't send chat response");
+                                        log_format(&mut write, &username, "OK").await.expect("Can't send chat response");
                                     },
                                     _ => {
-                                        write.write_all(b"ERR UNKNOWN_SCOPE\n").await.expect("Can't send unknown scope error");
+                                        log_format(&mut write, &username, "ERR 400 UNKNOWN_SCOPE").await.expect("Can't send unknown scope error");
                                     }
                                 }
                             },
                             "WHO" => {
-                                write.write_all(format!("{}\n", crate::who::who(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send who response");
+                                let response = crate::who::who(username.clone(), Arc::clone(&state)).await;
+                                log_format(&mut write, &username, &response).await.expect("Can't send who response");
                             },
                             "TALK" => {
-                                println!("Talk command with args: {}", args);
                                 if args.is_empty() {
-                                    write.write_all(b"ERR 400 MISSING_NPC_NAME\n").await.expect("Can't send missing NPC name error");
+                                    log_format(&mut write, &username, "ERR 400 MISSING_NPC_NAME").await.expect("Can't send missing NPC name error");
                                     continue;
                                 }
                                 let npc_details = talk(args, Arc::clone(&state)).await;
                                 if let Ok(details) = npc_details {
-                                    write.write_all(format!("OK {}\n", details).as_bytes()).await.expect("Can't send talk response");
+                                    let response = format!("OK {}", details);
+                                    log_format(&mut write, &username, &response).await.expect("Can't send talk response");
                                 } else {
-                                    write.write_all(b"ERR 404 NPC_NOT_FOUND\n").await.expect("Can't send talk error response");
+                                    log_format(&mut write, &username, "ERR 404 NPC_NOT_FOUND").await.expect("Can't send talk error response");
                                 }
                             },
                             "TAKE" => {
                                 if args.is_empty() {
-                                    write.write_all(b"ERR 400 MISSING_ITEM_NAME\n").await.expect("Can't send missing item name error");
+                                    log_format(&mut write, &username, "ERR 400 MISSING_ITEM_NAME").await.expect("Can't send missing item name error");
                                     continue;
                                 }
                                 let result = take(username.clone(), args.to_string(), Arc::clone(&state)).await;
                                 if let Ok(response) = result {
-                                    write.write_all(format!("{}\n", response).as_bytes()).await.expect("Can't send take response");
+                                    log_format(&mut write, &username, &response).await.expect("Can't send take response");
                                 } else {
-                                    write.write_all(b"ERR 404 ITEM_NOT_FOUND\n").await.expect("Can't send take error response");
+                                    log_format(&mut write, &username, "ERR 404 ITEM_NOT_FOUND").await.expect("Can't send take error response");
                                 }
                             },
                             "DROP" => {
                                 if args.is_empty() {
-                                    write.write_all(b"ERR 400 MISSING_ITEM_NAME\n").await.expect("Can't send missing item name error");
+                                    log_format(&mut write, &username, "ERR 400 MISSING_ITEM_NAME").await.expect("Can't send missing item name error");
                                     continue;
                                 }
                                 let result = crate::items::drop(username.clone(), args.to_string(), Arc::clone(&state)).await;
                                 if let Ok(response) = result {
-                                    write.write_all(format!("{}\n", response).as_bytes()).await.expect("Can't send drop response");
+                                    log_format(&mut write, &username, &response).await.expect("Can't send drop response");
                                 } else {
-                                    write.write_all(b"ERR 404 ITEM_NOT_IN_INVENTORY\n").await.expect("Can't send drop error response");
+                                    log_format(&mut write, &username, "ERR 404 ITEM_NOT_IN_INVENTORY").await.expect("Can't send drop error response");
                                 }
                             },
                             "INVENTORY" => {
                                 let players = state.players.lock().await;
                                 let player = players.get(&username).unwrap();
-                                let inventory = &player.inventory;
-                                write.write_all(format!("OK {}\n", serde_json::to_string(inventory).unwrap()).as_bytes()).await.expect("Can't send inventory response");
+                                let response = format!("OK {}", serde_json::to_string(&player.inventory).unwrap());
+                                drop(players);
+                                log_format(&mut write, &username, &response).await.expect("Can't send inventory response");
                             },
                             "QUEST" => {
                                 if args.is_empty() {
-                                    write.write_all(b"ERR 400 MISSING_NPC_NAME\n").await.expect("Can't send missing NPC name error");
+                                    log_format(&mut write, &username, "ERR 400 MISSING_NPC_NAME").await.expect("Can't send missing NPC name error");
                                     continue;
                                 }
                                 let res = quest(username.clone(), args, Arc::clone(&state)).await;
-                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send quest response");
+                                log_format(&mut write, &username, &res).await.expect("Can't send quest response");
                             },
                             "QUESTS" => {
-                                write.write_all(format!("{}\n", get_quests(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send quests response");
+                                let res = get_quests(username.clone(), Arc::clone(&state)).await;
+                                log_format(&mut write, &username, &res).await.expect("Can't send quests response");
                             }
                             "ATTACK" => {
                                 if args.is_empty() {
-                                    write.write_all(b"ERR 400 MISSING_NPC_NAME\n").await.expect("Can't send missing NPC name error");
+                                    log_format(&mut write, &username, "ERR 400 MISSING_NPC_NAME").await.expect("Can't send missing NPC name error");
                                     continue;
                                 }
                                 let res = attack(username.clone(), args, Arc::clone(&state)).await;
-                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send attack response");
+                                log_format(&mut write, &username, &res).await.expect("Can't send attack response");
                             },
                             "DEFEND" => {
                                 let res = defend(username.clone(), Arc::clone(&state)).await;
-                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send defend response");
+                                log_format(&mut write, &username, &res).await.expect("Can't send defend response");
                             },
                             "FLEE" => {
                                 let res = flee(username.clone(), Arc::clone(&state)).await;
-                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send flee response");
+                                log_format(&mut write, &username, &res).await.expect("Can't send flee response");
                             },
                             "USE_ITEM" | "USE" => {
                                 if args.is_empty() {
-                                    write.write_all(b"ERR 400 MISSING_ITEM_NAME\n").await.expect("Can't send missing item name error");
+                                    log_format(&mut write, &username, "ERR 400 MISSING_ITEM_NAME").await.expect("Can't send missing item name error");
                                     continue;
                                 }
                                 let res = use_item(username.clone(), args, Arc::clone(&state)).await;
-                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send use response");
+                                log_format(&mut write, &username, &res).await.expect("Can't send use response");
                             },
                             "STATUS" => {
                                 let res = status(username.clone(), Arc::clone(&state)).await;
-                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send status response");
+                                log_format(&mut write, &username, &res).await.expect("Can't send status response");
                             },
                             "GROUP" => {
                                 let arg = args.splitn(2, ' ').next().unwrap_or("");
@@ -267,10 +310,12 @@ async fn handle_commands(
                                     "CREATE" => {
                                         match group_create(username.clone().as_str(), Arc::clone(&state)).await {
                                             Ok(group_id) => {
-                                                write.write_all(format!("OK group={}\n", group_id).as_bytes()).await.expect("Can't send group created response");
+                                                let response = format!("OK group={}", group_id);
+                                                log_format(&mut write, &username, &response).await.expect("Can't send group created response");
                                             },
                                             Err(e) => {
-                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group creation error response");
+                                                let response = group_err_line(&e);
+                                                log_format(&mut write, &username, &response).await.expect("Can't send group creation error response");
                                             }
                                         }
                                     },
@@ -279,18 +324,18 @@ async fn handle_commands(
                                         let player_name = args.strip_prefix("INVITE ").unwrap_or("").trim();
                                         let group_id = players.get(&username).and_then(|player| player.group.clone());
                                         let Some(group_id) = group_id else {
-                                            write.write_all(b"ERR 401 NOT_IN_GROUP\n").await.expect("Can't send not in group error");
+                                            drop(players);
+                                            log_format(&mut write, &username, "ERR 401 NOT_IN_GROUP").await.expect("Can't send not in group error");
                                             continue;
                                         };
                                         drop(players);
                                         match group_invite(group_id.as_str(), player_name, username.clone().as_str(), Arc::clone(&state)).await {
                                             Ok(_) => {
-                                                println!("{} invited {} to group {}", username, player_name, group_id);
-                                                write.write_all(b"OK\n").await.expect("Can't send group invite response");
+                                                log_format(&mut write, &username, "OK").await.expect("Can't send group invite response");
                                             },
                                             Err(e) => {
-                                            println!("Error inviting {} to group {}: {}", player_name, group_id, e);
-                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group invite error response");
+                                                let response = group_err_line(&e);
+                                                log_format(&mut write, &username, &response).await.expect("Can't send group invite error response");
                                             }
                                         }
                                     },
@@ -298,81 +343,85 @@ async fn handle_commands(
                                         let leader_name = args.strip_prefix("JOIN ").unwrap_or("").trim();
                                         match group_join(leader_name, username.clone().as_str(), Arc::clone(&state)).await {
                                             Ok(group_id) => {
-                                                write.write_all(format!("OK group={}\n", group_id).as_bytes()).await.expect("Can't send group join response");
+                                                let response = format!("OK group={}", group_id);
+                                                log_format(&mut write, &username, &response).await.expect("Can't send group join response");
                                             },
                                             Err(e) => {
-                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group join error response");
+                                                let response = group_err_line(&e);
+                                                log_format(&mut write, &username, &response).await.expect("Can't send group join error response");
                                             }
                                         }
                                     },
                                     "LEAVE" => {
                                         match group_leave(username.clone().as_str(), Arc::clone(&state)).await {
                                             Ok(_) => {
-                                                write.write_all(b"OK\n").await.expect("Can't send group leave response");
+                                                log_format(&mut write, &username, "OK").await.expect("Can't send group leave response");
                                             },
                                             Err(e) => {
-                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group leave error response");
+                                                let response = group_err_line(&e);
+                                                log_format(&mut write, &username, &response).await.expect("Can't send group leave error response");
                                             }
                                         }
                                     },
                                     _ => {
-                                        write.write_all(b"ERR UNKNOWN_GROUP_COMMAND\n").await.expect("Can't send unknown group command error");
+                                        log_format(&mut write, &username, "ERR 400 UNKNOWN_GROUP_COMMAND").await.expect("Can't send unknown group command error");
                                     }
                                 }
                             },
                             _ => {
-                                println!("Unknown command from {}: {}", username, command);
+                                log_format(&mut write, &username, "ERR 400 UNKNOWN_COMMAND").await.expect("Can't send unknown command error");
                             }
                         }
                     },
                     Ok(None) => {
-                        println!("Client {} disconnected", username);
+                        reason = "eof";
                         break;
                     },
                     Err(e) => {
-                        println!("Error reading from {}: {}", username, e);
+                        logs_format::log_output("ERROR", "READ_ERROR", serde_json::json!({
+                            "player": username, "reason": e.to_string()
+                        }));
+                        reason = "error";
                         break;
                     }
                 }
             }
             msg = rx.recv() => {
                 if let Some(msg) = msg {
-                    write.write_all(format!("{}\n", msg).as_bytes()).await.expect("Can't send message");
+                    log_format(&mut write, &username, &msg).await.expect("Can't send message");
                 }
             }
         }
     }
+    logs_format::log_output("INFO", "DISCONNECT", serde_json::json!({
+        "player": username, "reason": reason, "ip": ip
+    }));
     remove_player(&username, Arc::clone(&state)).await;
-}
-
-async fn print_debug_state(state: Arc<SharedState>) {
-    let world_state = state.world_state.lock().await;
-    println!("{:#?}", world_state);
+	get_stats(&state).await;
 }
 
 pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
-    println!("New client connected. Need to authenticate");
+    let ip = socket
+        .peer_addr()
+        .map(|addr| addr.to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
     let (reader, mut writer) = socket.into_split();
     let mut lines = BufReader::new(reader).lines();
-    writer
-        .write_all(b"OK hello proto=1\n")
+    log_format(&mut writer, UNAUTHENTICATED, "OK hello proto=1")
         .await
-        .expect("Can't send great message");
+        .expect("Can't send greeting message");
     let (username, rx) = loop {
         match handle_client_auth(&mut lines, &mut writer, Arc::clone(&state)).await {
             Ok((username, rx)) => break (username, rx),
             Err(e) => {
-                if writer
-                    .write_all(format!("ERR {}\n", e).as_bytes())
-                    .await
-                    .is_err()
-                {
+                let response = format!("ERR {}", e);
+                if log_format(&mut writer, UNAUTHENTICATED, &response).await.is_err() {
                     return;
                 }
             }
         }
     };
-    handle_commands(lines, writer, rx, username, Arc::clone(&state)).await;
+    handle_commands(lines, writer, rx, username, ip, Arc::clone(&state)).await;
 }
 
 async fn handle_client_auth(
@@ -389,10 +438,9 @@ async fn handle_client_auth(
     add_player(username.clone(), Arc::clone(&state), tx)
         .await
         .map_err(|_| UserError::Internal)?;
-    writer
-        .write_all(b"OK connected\n")
+    log_format(writer, &username, "OK connected")
         .await
         .map_err(|_| UserError::Internal)?;
-    println!("Client authenticated");
+	get_stats(&state).await;
     Ok((username, rx))
 }

@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::broadcast::broadcast_room;
+use crate::logs_format::log_output;
 use crate::state::{SharedState, Turn};
 
 const PLAYER_MIN: i32 = 20;
@@ -99,6 +100,9 @@ async fn respawn_player(
             room.players.push(username.to_string());
         }
     }
+    log_output("WARN", "COMBAT_RESULT", serde_json::json!({
+        "player": username, "npc": npc_id, "result": "player_defeated", "respawn_hp": RESPAWN_HP
+    }));
     broadcast_room(
         &old_room,
         &format!("EVT ROOM COMBAT {} was defeated by {}", username, npc_id),
@@ -153,6 +157,10 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
                 player.combat_turn = Turn::Player;
                 player.combat_target = None;
             }
+            log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+                "player": username, "npc": npc_id, "action": "attack",
+                "damage": player_dmg, "result": "victory"
+            }));
             broadcast_room(
                 &player_room,
                 &format!("EVT ROOM COMBAT {} defeated {}", username, npc_id),
@@ -176,6 +184,10 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
             let mut players = state.players.lock().await;
             players.get_mut(&username).unwrap().combat_turn = Turn::Enemy;
         }
+        log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+            "player": username, "npc": npc_id, "action": "attack",
+            "damage": player_dmg, "target_hp": target_hp, "result": "hit"
+        }));
         return format!(
             "OK {}",
             combat_json(
@@ -207,6 +219,10 @@ pub async fn attack(username: String, npc_name_or_id: &str, state: Arc<SharedSta
             let mut players = state.players.lock().await;
             players.get_mut(&username).unwrap().combat_turn = Turn::Player;
         }
+        log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+            "player": username, "npc": npc_id, "action": "enemy_attack",
+            "damage": enemy_dmg, "player_hp": attacker_hp, "result": "hit"
+        }));
         return format!(
             "OK {}",
             combat_json(
@@ -291,6 +307,10 @@ pub async fn defend(username: String, state: Arc<SharedState>) -> String {
             player.combat_turn = Turn::Player;
             player.combat_target = None;
         }
+        log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+            "player": username, "npc": npc_id, "action": "defend",
+            "damage": enemy_dmg, "counter": riposte, "result": "victory"
+        }));
         broadcast_room(
             &player_room,
             &format!("EVT ROOM COMBAT {} defeated {}", username, npc_id),
@@ -303,6 +323,10 @@ pub async fn defend(username: String, state: Arc<SharedState>) -> String {
         );
     }
 
+    log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+        "player": username, "npc": npc_id, "action": "defend",
+        "damage": enemy_dmg, "counter": riposte, "target_hp": target_hp, "result": "combat"
+    }));
     broadcast_room(
         &player_room,
         &format!(
@@ -430,6 +454,9 @@ pub async fn flee(username: String, state: Arc<SharedState>) -> String {
             let players = state.players.lock().await;
             players.get(&username).map(|p| p.hp).unwrap_or(0)
         };
+        log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+            "player": username, "npc": npc_id, "action": "flee", "result": "fled", "room": destination
+        }));
         return format!(
             "OK {}",
             serde_json::json!({
@@ -474,6 +501,10 @@ async fn flee_failed(
             )
         );
     }
+    log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+        "player": username, "npc": npc_id, "action": "flee_failed",
+        "damage": enemy_dmg, "player_hp": attacker_hp, "result": "hit"
+    }));
     format!(
         "OK {}",
         combat_json(
@@ -532,6 +563,10 @@ pub async fn use_item(username: String, item_name_or_id: &str, state: Arc<Shared
         player.hp = (player.hp + heal).min(MAX_HP);
         player.hp
     };
+
+    log_output("INFO", "COMBAT_RESULT", serde_json::json!({
+        "player": username, "action": "use_item", "item": item_id, "healed": heal, "hp": hp
+    }));
 
     format!(
         "OK {}",

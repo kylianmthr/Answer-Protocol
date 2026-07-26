@@ -20,11 +20,13 @@ pub struct MyTap {
     state_items: Vec<String>,
     state_npcs: Vec<String>,
     state_inventory: Vec<String>,
+	state_players: Vec<String>,
+	server_player_count: usize,
     server_logs: Vec<String>,
     pending_talk: bool,
     pending_group_leave: bool,
 }
-
+#[warn(unreachable_patterns)]
 impl MyTap {
     pub fn new(
         rx_incoming: std::sync::mpsc::Receiver<ServerMessage>,
@@ -41,6 +43,8 @@ impl MyTap {
             state_items: Vec::new(),
             state_npcs: Vec::new(),
             state_inventory: Vec::new(),
+			state_players: Vec::new(),
+			server_player_count: 0,
             server_logs: Vec::new(),
             pending_talk: false,
             pending_group_leave: false,
@@ -409,20 +413,6 @@ impl MyTap {
                 if ui.button("Login").clicked() {
                     tx.send(format!("CONNECT {}", login_page.username)).unwrap();
                     login_page.waiting_res = true;
-                    //match auth(
-                    //    &login_page.rx_incoming,
-                    //    &login_page.tx_outgoing,
-                    //    login_page.username.clone(),
-                    //) {
-                    //    Ok(_) => {
-                    //        login_page.toasts.success("Login successful".to_string());
-                    //        println!("Login successful");
-                    //    }
-                    //    Err(e) => {
-                    //        println!("Login failed: {}", e);
-                    //        login_page.toasts.error(format!("Login failed: {}", e));
-                    //    }
-                    //}
                 }
             });
         });
@@ -433,38 +423,6 @@ impl MyTap {
         tx: &std::sync::mpsc::Sender<String>,
         pending_group_leave: &mut bool,
     ) {
-        // ui.vertical_centered(|ui| {
-        //     ui.scope(|ui| {
-        //         let style_field = ui.style_mut();
-        //         let rounding_field = egui::CornerRadius::same(10_u8);
-
-        //         style_field.visuals.extreme_bg_color = egui::Color32::WHITE;
-        //         style_field.visuals.override_text_color = Some(egui::Color32::BLACK);
-
-        //         style_field.visuals.widgets.active.corner_radius = rounding_field;
-        //         style_field.visuals.widgets.hovered.corner_radius = rounding_field;
-        //         style_field.visuals.widgets.inactive.corner_radius = rounding_field;
-        //         style_field.override_font_id = Some(egui::FontId::proportional(24.0_f32));
-        //         style_field.visuals.widgets.inactive.bg_fill = egui::Color32::WHITE;
-
-        // 		let res = ui.add(
-        //             egui::TextEdit::singleline(&mut chat_page.message_input)
-        //                 .hint_text("Type your message here...")
-        //                 .font(egui::FontId::new(
-        //                     20.0_f32,
-        //                     egui::FontFamily::Name("undertale_font".into()),
-        //                 )),
-        //         );
-
-        //         if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-        //             if !chat_page.message_input.trim().is_empty() {
-        //                 // Send the message to the server
-        //                 tx.send(format!(
-        //                     "CHAT {} {}",
-        //                     chat_page.scope, chat_page.message_input
-        //                 ))
-        //                 .unwrap();
-        //                 chat_page.message_input.clear();
         ui.vertical_centered(|ui| {
             ui.scope(|ui| {
                 if chat_page.message_input.starts_with('/') {
@@ -575,7 +533,11 @@ impl eframe::App for MyTap {
                 .min_size(300.0)
                 .show_inside(ctx, |ui| {
                     ui.heading("Chat");
-
+					 ui.label(format!(
+                        "Players — room=: {} in server=: {}",
+                        self.state_players.len(),
+                        self.server_player_count
+                    ));
                     egui::Panel::bottom("logs")
                         .min_size(150.0)
                         .show_inside(ui, |ui| {
@@ -645,7 +607,6 @@ impl eframe::App for MyTap {
                             &self.state_items,
                             &self.state_npcs,
                             &self.state_inventory,
-                            &mut self.pending_talk,
                         );
                     }
                     Screen::CombatView(combat) => {
@@ -728,9 +689,11 @@ impl eframe::App for MyTap {
                             self.state_inventory = parse_bare_array(&reponse);
                         }
                         if let Some(npcs) = json_array(&reponse, "npcs") {
-                            self.state_npcs = npcs;
+							self.state_npcs = npcs;
                         }
-
+						if let Some(players) = json_array(&reponse, "players") {
+							self.state_players = players;
+						}
                         let next_room_tr = match json_field(&reponse, "id").as_deref() {
                             Some("loc.tavern") => Some(StateRoom::Room1),
                             Some("loc.square") => Some(StateRoom::Room2),
@@ -853,6 +816,11 @@ impl eframe::App for MyTap {
                         }
                         EventType::PresenceEnter => {
                             self.toasts.info(format!("{} enter the room", data));
+                        }
+						EventType::Stats => {
+                            if let Some(count) = data.strip_prefix("players=").and_then(|s| s.parse::<usize>().ok()) {
+                                self.server_player_count = count;
+                            }
                         }
                         EventType::PresenceLeave => {
                             self.toasts.info(format!("{} leave the room", data));

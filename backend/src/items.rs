@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use crate::state::SharedState;
+use crate::state::{SharedState};
+use crate::logs_format::log_output;
+use serde_json;
 
 pub async fn take(
     player_name: String,
@@ -17,6 +19,7 @@ pub async fn take(
         .get_mut(player.room.as_str())
         .ok_or_else(|| format!("Room '{}' not found", player.room))?;
 
+	let room_id = player.room.clone();
     if !room.items.contains(&item_name_or_id)
         && !room.items.iter().any(|item| item == &item_name_or_id)
     {
@@ -44,7 +47,10 @@ pub async fn take(
     } else {
         room.items.retain(|item| item != &item_name_or_id);
         player.inventory.push(item_name_or_id.clone());
-        Ok(format!("OK taken={}", item_name_or_id))
+		log_output("INFO", "TAKEN", serde_json::json!({
+							"player": player_name, "ITEM_ID": item_name_or_id, "ROOM_ID": room_id
+						}));
+		Ok(format!("OK taken={}", item_name_or_id))
     }
 }
 
@@ -63,12 +69,17 @@ pub async fn drop(
         .get_mut(player.room.as_str())
         .ok_or_else(|| format!("Room '{}' not found", player.room))?;
 
+	let room_id = player.room.clone();
+
     if !player.inventory.contains(&item_name_or_id) {
         return Err("ERR 404 ITEM_NOT_IN_INVENTORY\n".to_string());
     }
 
     player.inventory.retain(|item| item != &item_name_or_id);
     room.items.push(item_name_or_id.clone());
+	log_output("INFO", "DROPED", serde_json::json!({
+							"player": player_name, "ITEM_ID": item_name_or_id, "ROOM_ID": room_id
+						}));
     Ok(format!("OK dropped={}", item_name_or_id))
 }
 
@@ -77,5 +88,8 @@ pub async fn inventory(player_name: String, state: Arc<SharedState>) -> Result<S
     let player = players
         .get(&player_name)
         .ok_or_else(|| format!("Player '{}' not found", player_name))?;
-    Ok(format!("OK inventory={:?}", player.inventory))
+	log_output("INFO", "INVENTORY", serde_json::json!({
+							"player": player_name
+						}));
+	Ok(format!("OK inventory={:?}", player.inventory))
 }
