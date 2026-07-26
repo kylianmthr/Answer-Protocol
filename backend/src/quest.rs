@@ -1,5 +1,5 @@
 use std::sync::Arc;
-
+use crate::logs_format::log_output;
 use crate::state::{PlayerQuest, Quest, QuestStatus, SharedState};
 
 fn quest_json(quest: &Quest, status: &str) -> String {
@@ -38,6 +38,9 @@ pub async fn quest(username: String, npc_name_or_id: &str, state: Arc<SharedStat
                 quest: quest.clone(),
                 status: QuestStatus::Active,
             });
+			log_output("INFO", "QUEST_PROG", serde_json::json!({
+				"player": username, "quest_id": quest.id, "status": "active"
+			}));
             format!("OK {}", quest_json(quest, "active"))
         }
         Some(i) if player.quests[i].status == QuestStatus::Completed => {
@@ -52,7 +55,10 @@ pub async fn quest(username: String, npc_name_or_id: &str, state: Arc<SharedStat
                 player.inventory.remove(item_pos);
                 player.inventory.push(quest.reward.clone());
                 player.quests[i].status = QuestStatus::Completed;
-                format!("OK {}", quest_json(quest, "completed"))
+				log_output("INFO", "QUEST_PROG", serde_json::json!({
+				"player": username, "quest_id": quest.id, "status": "completed", "reward": quest.reward
+				}));
+				format!("OK {}", quest_json(quest, "completed"))
             }
             None => format!("OK {}", quest_json(quest, "active")),
         },

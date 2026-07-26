@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use crate::logs_format::log_output;
 
 use crate::broadcast::broadcast_room;
 use crate::state::{SharedState, Turn};
@@ -22,6 +23,11 @@ fn roll(min: i32, max: i32, salt: u64) -> i32 {
     let span = (max - min + 1).max(1) as u64;
     min + (x % span) as i32
 }
+
+// il faut que on le mette dans respawn pour les logs !!
+//  logs_format::log_output("WARN", "COMBAT_RESULT", serde_json::json!({
+//         "player": username, "npc": npc_id, "result": "player_defeated", "respawn_hp": RESPAWN_HP
+//     }));
 
 fn combat_json(
     actor: &str,
