@@ -6,9 +6,9 @@ use crate::attack::use_item;
 use crate::broadcast::broadcast_global;
 use crate::broadcast::broadcast_group;
 use crate::chat::chat_room;
-use crate::group::group_accept;
 use crate::group::group_create;
 use crate::group::group_invite;
+use crate::group::group_join;
 use crate::group::group_leave;
 use crate::items::take;
 use crate::look::look;
@@ -45,6 +45,8 @@ fn group_err_line(e: &str) -> String {
     match e {
         "ALREADY_IN_GROUP" => "ERR 402 ALREADY_IN_GROUP".to_string(),
         "NOT_IN_GROUP" => "ERR 401 NOT_IN_GROUP".to_string(),
+        "NO_INVITATION" => "ERR 403 NO_INVITATION".to_string(),
+        "GROUP_NOT_FOUND" => "ERR 410 GROUP_NOT_FOUND".to_string(),
         other => format!("ERR 500 {}", other),
     }
 }
@@ -263,10 +265,9 @@ async fn handle_commands(
                                 let arg = args.splitn(2, ' ').next().unwrap_or("");
                                 match arg {
                                     "CREATE" => {
-                                        let group_name = args.strip_prefix("CREATE ").unwrap_or("").trim();
-                                        match group_create(group_name, username.clone().as_str(), Arc::clone(&state)).await {
-                                            Ok(_) => {
-                                                write.write_all(format!("OK group={}\n", group_name).as_bytes()).await.expect("Can't send group created response");
+                                        match group_create(username.clone().as_str(), Arc::clone(&state)).await {
+                                            Ok(group_id) => {
+                                                write.write_all(format!("OK group={}\n", group_id).as_bytes()).await.expect("Can't send group created response");
                                             },
                                             Err(e) => {
                                                 write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group creation error response");
@@ -294,10 +295,10 @@ async fn handle_commands(
                                         }
                                     },
                                     "JOIN" => {
-                                        let group_name = args.strip_prefix("JOIN ").unwrap_or("").trim();
-                                        match group_accept(group_name, username.clone().as_str(), Arc::clone(&state)).await {
-                                            Ok(_) => {
-                                                write.write_all(format!("OK group={}\n", group_name).as_bytes()).await.expect("Can't send group join response");
+                                        let leader_name = args.strip_prefix("JOIN ").unwrap_or("").trim();
+                                        match group_join(leader_name, username.clone().as_str(), Arc::clone(&state)).await {
+                                            Ok(group_id) => {
+                                                write.write_all(format!("OK group={}\n", group_id).as_bytes()).await.expect("Can't send group join response");
                                             },
                                             Err(e) => {
                                                 write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group join error response");
