@@ -20,6 +20,8 @@ pub struct MyTap {
     state_items: Vec<String>,
     state_npcs: Vec<String>,
     state_inventory: Vec<String>,
+	state_players: Vec<String>,
+	server_player_count: usize,
     server_logs: Vec<String>,
     pending_talk: bool,
     pending_group_leave: bool,
@@ -41,6 +43,8 @@ impl MyTap {
             state_items: Vec::new(),
             state_npcs: Vec::new(),
             state_inventory: Vec::new(),
+			state_players: Vec::new(),
+			server_player_count: 0,
             server_logs: Vec::new(),
             pending_talk: false,
             pending_group_leave: false,
@@ -529,7 +533,11 @@ impl eframe::App for MyTap {
                 .min_size(300.0)
                 .show_inside(ctx, |ui| {
                     ui.heading("Chat");
-
+					 ui.label(format!(
+                        "Players — room=: {} in server=: {}",
+                        self.state_players.len(),
+                        self.server_player_count
+                    ));
                     egui::Panel::bottom("logs")
                         .min_size(150.0)
                         .show_inside(ui, |ui| {
@@ -681,9 +689,11 @@ impl eframe::App for MyTap {
                             self.state_inventory = parse_bare_array(&reponse);
                         }
                         if let Some(npcs) = json_array(&reponse, "npcs") {
-                            self.state_npcs = npcs;
+							self.state_npcs = npcs;
                         }
-
+						if let Some(players) = json_array(&reponse, "players") {
+							self.state_players = players;
+						}
                         let next_room_tr = match json_field(&reponse, "id").as_deref() {
                             Some("loc.tavern") => Some(StateRoom::Room1),
                             Some("loc.square") => Some(StateRoom::Room2),
@@ -806,6 +816,11 @@ impl eframe::App for MyTap {
                         }
                         EventType::PresenceEnter => {
                             self.toasts.info(format!("{} enter the room", data));
+                        }
+						EventType::Stats => {
+                            if let Some(count) = data.strip_prefix("players=").and_then(|s| s.parse::<usize>().ok()) {
+                                self.server_player_count = count;
+                            }
                         }
                         EventType::PresenceLeave => {
                             self.toasts.info(format!("{} leave the room", data));

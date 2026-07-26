@@ -140,6 +140,11 @@ async fn remove_player(username: &str, state: Arc<SharedState>) {
     }
 }
 
+async fn get_stats(state: &Arc<SharedState>) {
+	let count_trafic = state.players.lock().await.len();
+	broadcast_global(&format!("EVT STATS players={}", count_trafic), Arc::clone(state)).await;
+}
+
 async fn handle_commands(
     mut lines: Lines<BufReader<OwnedReadHalf>>,
     mut write: OwnedWriteHalf,
@@ -391,6 +396,7 @@ async fn handle_commands(
         "player": username, "reason": reason, "ip": ip
     }));
     remove_player(&username, Arc::clone(&state)).await;
+	get_stats(&state).await;
 }
 
 pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
@@ -434,5 +440,6 @@ async fn handle_client_auth(
     log_format(writer, &username, "OK connected")
         .await
         .map_err(|_| UserError::Internal)?;
+	get_stats(&state).await;
     Ok((username, rx))
 }
