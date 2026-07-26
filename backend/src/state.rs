@@ -26,6 +26,7 @@ pub struct Player {
     pub group: Option<String>,
     pub quests: Vec<PlayerQuest>,
     pub combat_turn: Turn,
+    pub combat_target: Option<String>,
 }
 
 impl Player {
@@ -44,6 +45,7 @@ impl Player {
             group: None,
             quests: Vec::new(),
             combat_turn: Turn::Player,
+            combat_target: None,
         };
         player.validate()?;
         Ok(player)
@@ -92,6 +94,8 @@ pub struct Item {
     #[validate(length(min = 1, max = 255))]
     pub description: String,
     pub obtainable: bool,
+    #[serde(default)]
+    pub heal: i32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Validate)]

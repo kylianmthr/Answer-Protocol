@@ -1,5 +1,8 @@
 use crate::attack::attack;
+use crate::attack::defend;
+use crate::attack::flee;
 use crate::attack::status;
+use crate::attack::use_item;
 use crate::broadcast::broadcast_global;
 use crate::broadcast::broadcast_group;
 use crate::chat::chat_room;
@@ -235,6 +238,22 @@ async fn handle_commands(
                                 }
                                 let res = attack(username.clone(), args, Arc::clone(&state)).await;
                                 write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send attack response");
+                            },
+                            "DEFEND" => {
+                                let res = defend(username.clone(), Arc::clone(&state)).await;
+                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send defend response");
+                            },
+                            "FLEE" => {
+                                let res = flee(username.clone(), Arc::clone(&state)).await;
+                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send flee response");
+                            },
+                            "USE_ITEM" | "USE" => {
+                                if args.is_empty() {
+                                    write.write_all(b"ERR 400 MISSING_ITEM_NAME\n").await.expect("Can't send missing item name error");
+                                    continue;
+                                }
+                                let res = use_item(username.clone(), args, Arc::clone(&state)).await;
+                                write.write_all(format!("{}\n", res).as_bytes()).await.expect("Can't send use response");
                             },
                             "STATUS" => {
                                 let res = status(username.clone(), Arc::clone(&state)).await;

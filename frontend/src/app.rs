@@ -335,6 +335,18 @@ impl MyTap {
                 combat.can_act = false;
                 combat.last_msg = "You strike...".to_string();
             }
+            ui.add_space(8.0);
+            if CommandButton::click_button(ui, "DEFEND", combat.can_act) {
+                tx.send("DEFEND".to_string()).unwrap();
+                combat.can_act = false;
+                combat.last_msg = "You brace for the blow...".to_string();
+            }
+            ui.add_space(8.0);
+            if CommandButton::click_button(ui, "FLEE", combat.can_act) {
+                tx.send("FLEE".to_string()).unwrap();
+                combat.can_act = false;
+                combat.last_msg = "You try to flee...".to_string();
+            }
         });
     }
 
@@ -577,7 +589,12 @@ impl eframe::App for MyTap {
                         });
 
                     egui::Panel::bottom("chat_input").show_inside(ui, |ui| {
-                        Self::draw_chat(ui, &mut self.chat_page, &tx, &mut self.pending_group_leave);
+                        Self::draw_chat(
+                            ui,
+                            &mut self.chat_page,
+                            &tx,
+                            &mut self.pending_group_leave,
+                        );
                     });
 
                     egui::Panel::top("scope_select").show_inside(ui, |ui| {
@@ -876,6 +893,7 @@ impl eframe::App for MyTap {
                         let target_hp = json_number(&reponse, "target_hp");
                         let dmg = json_number(&reponse, "damage");
                         let actor = json_field(&reponse, "actor").unwrap_or_default();
+                        let action = json_field(&reponse, "action").unwrap_or_default();
                         let status = json_field(&reponse, "status").unwrap_or_default();
                         match status.as_str() {
                             "victory" => {
@@ -893,10 +911,37 @@ impl eframe::App for MyTap {
                                 self.pending_room = Some(StateRoom::Room1);
                                 transition = Some(Screen::LoadingMod(90));
                             }
+                            "fled" => {
+                                self.toasts.info("You fled from combat!".to_string());
+                                let room = match json_field(&reponse, "room").as_deref() {
+                                    Some("loc.tavern") => StateRoom::Room1,
+                                    Some("loc.square") => StateRoom::Room2,
+                                    Some("loc.shop") => StateRoom::Room3,
+                                    Some("loc.forest") => StateRoom::Room4,
+                                    Some("loc.library") => StateRoom::Room5,
+                                    Some("loc.observatory") => StateRoom::Room6,
+                                    Some("loc.swamp") => StateRoom::Room7,
+                                    Some("loc.crypt") => StateRoom::Room8,
+                                    _ => StateRoom::Room1,
+                                };
+                                self.tx_outgoing.send("LOOK".to_string()).unwrap();
+                                self.pending_room = Some(room);
+                                transition = Some(Screen::LoadingMod(90));
+                            }
                             _ => {
                                 if let Screen::CombatView(c) = &mut self.screen {
-                                    if actor == "enemy" {
+                                    if action == "defend" {
+                                        let counter = json_number(&reponse, "counter");
                                         c.player_hp = attacker_hp;
+                                        c.enemy_hp = target_hp;
+                                        c.can_act = true;
+                                        c.last_msg = format!(
+                                            "You parry ({} dmg) and riposte for {}!",
+                                            dmg, counter
+                                        );
+                                    } else if actor == "enemy" {
+                                        c.player_hp = attacker_hp;
+                                        c.enemy_hp = target_hp;
                                         c.can_act = true;
                                         c.last_msg = format!("Enemy hits for {}!", dmg);
                                     } else {
