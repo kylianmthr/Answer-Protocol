@@ -13,5 +13,5 @@ pub async fn talk(npc_name_or_id: &str, shared_state: Arc<SharedState>) -> Resul
             .find(|npc| npc.name == npc_name_or_id);
     }
     npc.ok_or_else(|| format!("NPC '{}' not found", npc_name_or_id))
-        .map(|npc| serde_json::to_string(&npc).unwrap())
+        .map(|npc| npc.dialogue.join(" "))
 }

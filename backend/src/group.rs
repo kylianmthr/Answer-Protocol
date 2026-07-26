@@ -57,6 +57,23 @@ pub async fn group_invite(
     }
 }
 
+pub async fn group_leave(player_name: &str, state: Arc<SharedState>) -> Result<(), String> {
+    let mut groups = state.groups.lock().await;
+    let mut players = state.players.lock().await;
+
+    let player = players
+        .get_mut(player_name)
+        .ok_or_else(|| "PLAYER_NOT_FOUND".to_string())?;
+    let group_name = player.group.take().ok_or_else(|| "NOT_IN_GROUP".to_string())?;
+    if let Some(group) = groups.get_mut(&group_name) {
+        group.remove_member(player_name);
+        for member in &group.members {
+            let _ = member.tx.send(format!("EVT GROUP LEAVE {}", player_name));
+        }
+    }
+    Ok(())
+}
+
 pub async fn group_accept(
     group_name: &str,
     player_name: &str,

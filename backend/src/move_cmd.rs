@@ -1,6 +1,5 @@
 use crate::{
     broadcast::broadcast_room,
-    look::look,
     state::{SharedState, Turn},
 };
 use std::sync::Arc;
@@ -8,7 +7,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MoveError {
-    #[error("INVALID_DIRECTION")]
+    #[error("301 NO_EXIT")]
     InvalidDirection,
 }
 
@@ -39,6 +38,7 @@ pub async fn move_cmd(
     current_room.players.retain(|p| p != &username);
     player.room = room.exits.get(direction.as_str()).unwrap().to_string();
     player.combat_turn = Turn::Player;
+    player.combat_target = None;
     drop(world_state);
     drop(players);
     broadcast_room(
@@ -53,6 +53,5 @@ pub async fn move_cmd(
         state.clone(),
     )
     .await;
-    let look_res = look(username.clone(), state.clone()).await;
-    Ok(look_res)
+    Ok(next_room_id)
 }
