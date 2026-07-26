@@ -1,8 +1,6 @@
 use crate::state::{Group, SharedState};
 use std::sync::Arc;
 
-/// Create a new group led by `owner_name`. Per RFC 5.3.1 the client sends no
-/// group name; the server generates the group-id and returns it to the caller.
 pub async fn group_create(owner_name: &str, state: Arc<SharedState>) -> Result<String, String> {
     let mut groups = state.groups.lock().await;
     let mut players = state.players.lock().await;
@@ -12,7 +10,6 @@ pub async fn group_create(owner_name: &str, state: Arc<SharedState>) -> Result<S
     if player.group.is_some() {
         return Err("ALREADY_IN_GROUP".to_string());
     }
-    // A player can lead at most one group at a time, so this id is unique.
     let group_id = format!("grp.{}", owner_name);
     if groups.contains_key(&group_id) {
         return Err("ALREADY_EXIST".to_string());
@@ -41,8 +38,6 @@ pub async fn group_invite(
                 return Err("ALREADY_IN_GROUP".to_string());
             }
             player.invitations.push(group_snapshot);
-            // Per RFC 6.2.3 the invite event carries the leader's name, which is
-            // what the invitee passes to GROUP JOIN.
             player
                 .tx
                 .send(format!("EVT GROUP INVITE {}", leader))
@@ -76,8 +71,6 @@ pub async fn group_leave(player_name: &str, state: Arc<SharedState>) -> Result<(
     Ok(())
 }
 
-/// Join the group led by `leader_name` (RFC 5.3.3: `GROUP JOIN <leader-name>`).
-/// The player must have been invited to that group. Returns the group-id.
 pub async fn group_join(
     leader_name: &str,
     player_name: &str,
@@ -86,7 +79,6 @@ pub async fn group_join(
     let mut groups = state.groups.lock().await;
     let mut players = state.players.lock().await;
 
-    // Resolve the group from its leader's name.
     let group_id = groups
         .iter()
         .find(|(_, group)| group.leader == leader_name)
