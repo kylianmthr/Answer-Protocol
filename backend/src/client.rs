@@ -6,6 +6,7 @@ use crate::chat::chat_room;
 use crate::group::group_accept;
 use crate::group::group_create;
 use crate::group::group_invite;
+use crate::group::group_leave;
 use crate::items::take;
 use crate::look::look;
 use crate::move_cmd::move_cmd;
@@ -25,14 +26,24 @@ use tokio::sync::mpsc::UnboundedReceiver;
 
 #[derive(Debug, Error)]
 enum UserError {
-    #[error("INVALID_USERNAME")]
+    #[error("500 INVALID_USERNAME")]
     InvalidUsername,
-    #[error("ALREADY_EXIST")]
+    #[error("201 NAME_IN_USE")]
     AlreadyExist,
-    #[error("BAD_PREFIX")]
+    #[error("500 BAD_PREFIX")]
     BadPrefix,
-    #[error("INVALID_READ")]
+    #[error("500 INVALID_READ")]
     InvalidRead,
+    #[error("500 INTERNAL_ERROR")]
+    Internal,
+}
+
+fn group_err_line(e: &str) -> String {
+    match e {
+        "ALREADY_IN_GROUP" => "ERR 402 ALREADY_IN_GROUP".to_string(),
+        "NOT_IN_GROUP" => "ERR 401 NOT_IN_GROUP".to_string(),
+        other => format!("ERR 500 {}", other),
+    }
 }
 
 async fn verify_authentication(
@@ -122,7 +133,7 @@ async fn handle_commands(
                             "MOVE" => {
                                 match move_cmd(username.clone(), args.to_string(), Arc::clone(&state)).await {
                                     Ok(new_room) => {
-                                        write.write_all(format!("OK {}\n", new_room).as_bytes()).await.expect("Can't send move response");
+                                        write.write_all(format!("OK room={}\n", new_room).as_bytes()).await.expect("Can't send move response");
                                     },
                                     Err(e) => {
                                         write.write_all(format!("ERR {}\n", e).as_bytes()).await.expect("Can't send move error response");
@@ -140,10 +151,12 @@ async fn handle_commands(
                                     "ROOM" => {
                                         let message = args.strip_prefix("ROOM ").unwrap_or("").trim();
                                         chat_room(message.to_string(), username.clone(), Arc::clone(&state)).await;
+                                        write.write_all(b"OK\n").await.expect("Can't send chat response");
                                     },
                                     "GLOBAL" => {
                                         let message = args.strip_prefix("GLOBAL ").unwrap_or("").trim();
                                         broadcast_global(format!("EVT GLOBAL CHAT {} {}", username, message).as_str(), Arc::clone(&state)).await;
+                                        write.write_all(b"OK\n").await.expect("Can't send chat response");
                                     },
                                     "GROUP" => {
                                         let message = args.strip_prefix("GROUP ").unwrap_or("").trim();
@@ -151,6 +164,7 @@ async fn handle_commands(
                                         let group_id = players.get(&username).and_then(|player| player.group.clone());
                                         drop(players);
                                         broadcast_group(group_id.as_deref().unwrap_or(""), format!("EVT GROUP CHAT {} {}", username, message).as_str(), Arc::clone(&state)).await;
+                                        write.write_all(b"OK\n").await.expect("Can't send chat response");
                                     },
                                     _ => {
                                         write.write_all(b"ERR UNKNOWN_SCOPE\n").await.expect("Can't send unknown scope error");
@@ -158,7 +172,7 @@ async fn handle_commands(
                                 }
                             },
                             "WHO" => {
-                                write.write_all(crate::who::who(username.clone(), Arc::clone(&state)).await.as_bytes()).await.expect("Can't send who response");
+                                write.write_all(format!("{}\n", crate::who::who(username.clone(), Arc::clone(&state)).await).as_bytes()).await.expect("Can't send who response");
                             },
                             "TALK" => {
                                 println!("Talk command with args: {}", args);
@@ -236,7 +250,7 @@ async fn handle_commands(
                                                 write.write_all(format!("OK group={}\n", group_name).as_bytes()).await.expect("Can't send group created response");
                                             },
                                             Err(e) => {
-                                                write.write_all(format!("ERR 500 {}\n", e).as_bytes()).await.expect("Can't send group creation error response");
+                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group creation error response");
                                             }
                                         }
                                     },
@@ -256,7 +270,7 @@ async fn handle_commands(
                                             },
                                             Err(e) => {
                                             println!("Error inviting {} to group {}: {}", player_name, group_id, e);
-                                                write.write_all(format!("ERR 500 {}\n", e).as_bytes()).await.expect("Can't send group invite error response");
+                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group invite error response");
                                             }
                                         }
                                     },
@@ -267,7 +281,17 @@ async fn handle_commands(
                                                 write.write_all(format!("OK group={}\n", group_name).as_bytes()).await.expect("Can't send group join response");
                                             },
                                             Err(e) => {
-                                                write.write_all(format!("ERR 500 {}\n", e).as_bytes()).await.expect("Can't send group join error response");
+                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group join error response");
+                                            }
+                                        }
+                                    },
+                                    "LEAVE" => {
+                                        match group_leave(username.clone().as_str(), Arc::clone(&state)).await {
+                                            Ok(_) => {
+                                                write.write_all(b"OK\n").await.expect("Can't send group leave response");
+                                            },
+                                            Err(e) => {
+                                                write.write_all(format!("{}\n", group_err_line(&e)).as_bytes()).await.expect("Can't send group leave error response");
                                             }
                                         }
                                     },
@@ -319,7 +343,7 @@ pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
             Ok((username, rx)) => break (username, rx),
             Err(e) => {
                 if writer
-                    .write_all(format!("ERR 500 {}\n", e).as_bytes())
+                    .write_all(format!("ERR {}\n", e).as_bytes())
                     .await
                     .is_err()
                 {
@@ -331,16 +355,24 @@ pub async fn handle_client(socket: TcpStream, state: Arc<SharedState>) {
     handle_commands(lines, writer, rx, username, Arc::clone(&state)).await;
 }
 
-pub async fn handle_client_auth(
+async fn handle_client_auth(
     lines: &mut Lines<BufReader<OwnedReadHalf>>,
     writer: &mut OwnedWriteHalf,
     state: Arc<SharedState>,
-) -> Result<(String, UnboundedReceiver<String>), Box<dyn std::error::Error + Send + Sync>> {
-    let line = lines.next_line().await?;
+) -> Result<(String, UnboundedReceiver<String>), UserError> {
+    let line = lines
+        .next_line()
+        .await
+        .map_err(|_| UserError::InvalidRead)?;
     let username = verify_authentication(line, Arc::clone(&state)).await?;
     let (tx, rx) = mpsc::unbounded_channel();
-    add_player(username.clone(), Arc::clone(&state), tx).await?;
-    writer.write_all(b"OK connected\n").await?;
+    add_player(username.clone(), Arc::clone(&state), tx)
+        .await
+        .map_err(|_| UserError::Internal)?;
+    writer
+        .write_all(b"OK connected\n")
+        .await
+        .map_err(|_| UserError::Internal)?;
     println!("Client authenticated");
     Ok((username, rx))
 }

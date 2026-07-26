@@ -48,6 +48,7 @@ impl CommandButton {
         available_items: &[String],
         available_npcs: &[String],
         inventory: &[String],
+        pending_talk: &mut bool,
     ) {
         let rect_screen = ui.max_rect();
         let pos_bottom = egui::pos2(rect_screen.center().x, rect_screen.max.y - (60.0));
@@ -180,9 +181,9 @@ impl CommandButton {
                             ui.label("No one here");
                         } else {
                             for npc in available_npcs {
-                                let label_npc = npc.split(".").last().unwrap_or(npc);
                                 if Self::click_button(ui, npc, true) {
-                                    tx_outcomming.send(format!("TALK {}", label_npc)).unwrap();
+                                    tx_outcomming.send(format!("TALK {}", npc)).unwrap();
+                                    *pending_talk = true;
                                     self.current_action = None;
                                 }
                             }
