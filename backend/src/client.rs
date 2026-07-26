@@ -203,7 +203,7 @@ async fn handle_commands(
                                         log_format(&mut write, &username, "OK").await.expect("Can't send chat response");
                                     },
                                     _ => {
-                                        log_format(&mut write, &username, "ERR UNKNOWN_SCOPE").await.expect("Can't send unknown scope error");
+                                        log_format(&mut write, &username, "ERR 400 UNKNOWN_SCOPE").await.expect("Can't send unknown scope error");
                                     }
                                 }
                             },
@@ -356,7 +356,7 @@ async fn handle_commands(
                                         }
                                     },
                                     _ => {
-                                        log_format(&mut write, &username, "ERR UNKNOWN_GROUP_COMMAND").await.expect("Can't send unknown group command error");
+                                        log_format(&mut write, &username, "ERR 400 UNKNOWN_GROUP_COMMAND").await.expect("Can't send unknown group command error");
                                     }
                                 }
                             },

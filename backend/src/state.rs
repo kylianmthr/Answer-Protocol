@@ -7,8 +7,12 @@ use std::sync::Arc;
 use tokio::sync::{Mutex, mpsc};
 use validator::Validate;
 use validator::ValidationErrors;
+use std::collections::VecDeque;
+use std::time::Instant;
 
 #[derive(Clone, PartialEq)]
+
+
 pub enum Turn {
     Player,
     Enemy,
@@ -194,11 +198,18 @@ pub struct WorldState {
     pub npcs: HashMap<String, NpcState>,
 }
 
+
+pub struct track_flooding {
+	pub commands: HashMap<String, VecDeque<Instant>>,
+	pub connected: HashMap<String, VecDeque<Instant>>
+}
+
 pub struct SharedState {
     pub players: Mutex<HashMap<String, Player>>,
     pub world_data: Mutex<WorldData>,
     pub world_state: Mutex<WorldState>,
     pub groups: Mutex<HashMap<String, Group>>,
+	pub abuse: Mutex<track_flooding>
 }
 
 impl WorldState {

@@ -599,7 +599,6 @@ impl eframe::App for MyTap {
                             &self.state_items,
                             &self.state_npcs,
                             &self.state_inventory,
-                            &mut self.pending_talk,
                         );
                     }
                     Screen::CombatView(combat) => {
