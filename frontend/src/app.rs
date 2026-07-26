@@ -21,6 +21,7 @@ pub struct MyTap {
     state_npcs: Vec<String>,
     state_inventory: Vec<String>,
     server_logs: Vec<String>,
+    pending_talk: bool,
 }
 
 impl MyTap {
@@ -40,6 +41,7 @@ impl MyTap {
             state_npcs: Vec::new(),
             state_inventory: Vec::new(),
             server_logs: Vec::new(),
+            pending_talk: false,
         }
     }
 }
@@ -158,6 +160,25 @@ fn json_array(json: &str, key: &str) -> Option<Vec<String>> {
             .split(',')
             .map(|s| s.trim().trim_matches('"').to_string())
             .filter(|s| !s.is_empty())
+            .collect(),
+    )
+}
+
+fn json_object_keys(json: &str, key: &str) -> Option<Vec<String>> {
+    let pattern = format!("\"{}\":{{", key);
+    let start = json.find(&pattern)? + pattern.len();
+    let end = json[start..].find('}')? + start;
+    Some(
+        json[start..end]
+            .split(',')
+            .filter_map(|pair| {
+                let k = pair.split(':').next()?.trim().trim_matches('"');
+                if k.is_empty() {
+                    None
+                } else {
+                    Some(k.to_string())
+                }
+            })
             .collect(),
     )
 }
@@ -601,6 +622,7 @@ impl eframe::App for MyTap {
                             &self.state_items,
                             &self.state_npcs,
                             &self.state_inventory,
+                            &mut self.pending_talk,
                         );
                     }
                     Screen::CombatView(combat) => {
@@ -623,8 +645,8 @@ impl eframe::App for MyTap {
                         self.tx_outgoing.send("LOOK".to_string()).unwrap();
                         transition = Some(Screen::LoadingMod(90));
                     }
-                    Ok(ServerMessage::Err { code: 500, message }) => {
-                        self.toasts.error(message);
+                    Ok(ServerMessage::Err { code, message }) => {
+                        self.toasts.error(format!("{} {}", code, message));
                         login_page.waiting_res = false;
                     }
                     _ => {}
@@ -647,7 +669,17 @@ impl eframe::App for MyTap {
                 match msg {
                     ServerMessage::Ok(reponse) => {
                         self.server_logs.push(format!("[Ok] {}", reponse));
-                        if let Some(exits) = json_array(&reponse, "exits_rooms") {
+                        if self.pending_talk {
+                            self.pending_talk = false;
+                            if !reponse.is_empty() {
+                                self.toasts.info(reponse.clone());
+                            }
+                            continue;
+                        }
+                        if reponse.starts_with("room=") {
+                            self.tx_outgoing.send("LOOK".to_string()).unwrap();
+                        }
+                        if let Some(exits) = json_object_keys(&reponse, "exits") {
                             self.state_exits = exits;
                         }
 
@@ -670,30 +702,17 @@ impl eframe::App for MyTap {
                         if let Some(npcs) = json_array(&reponse, "npcs") {
                             self.state_npcs = npcs;
                         }
-                        if let Some(dialogue) = json_array(&reponse, "dialogue") {
-                            let name = json_field(&reponse, "name").unwrap_or_default();
-                            let line = dialogue.first().cloned().unwrap_or_default();
-                            self.toasts.info(format!("{}: {}", name, line));
-                        }
 
-                        let next_room_tr = if reponse.contains("loc.tavern") {
-                            Some(StateRoom::Room1)
-                        } else if reponse.contains("loc.square") {
-                            Some(StateRoom::Room2)
-                        } else if reponse.contains("loc.shop") {
-                            Some(StateRoom::Room3)
-                        } else if reponse.contains("loc.forest") {
-                            Some(StateRoom::Room4)
-                        } else if reponse.contains("loc.library") {
-                            Some(StateRoom::Room5)
-                        } else if reponse.contains("loc.observatory") {
-                            Some(StateRoom::Room6)
-                        } else if reponse.contains("loc.swamp") {
-                            Some(StateRoom::Room7)
-                        } else if reponse.contains("loc.crypt") {
-                            Some(StateRoom::Room8)
-                        } else {
-                            None
+                        let next_room_tr = match json_field(&reponse, "id").as_deref() {
+                            Some("loc.tavern") => Some(StateRoom::Room1),
+                            Some("loc.square") => Some(StateRoom::Room2),
+                            Some("loc.shop") => Some(StateRoom::Room3),
+                            Some("loc.forest") => Some(StateRoom::Room4),
+                            Some("loc.library") => Some(StateRoom::Room5),
+                            Some("loc.observatory") => Some(StateRoom::Room6),
+                            Some("loc.swamp") => Some(StateRoom::Room7),
+                            Some("loc.crypt") => Some(StateRoom::Room8),
+                            _ => None,
                         };
 
                         if let Some(room) = next_room_tr {
@@ -814,6 +833,7 @@ impl eframe::App for MyTap {
                     },
 
                     ServerMessage::Err { code, message } => {
+                        self.pending_talk = false;
                         self.toasts.error(format!("Error {}: {}", code, message));
                     }
                 }
@@ -875,6 +895,7 @@ impl eframe::App for MyTap {
                         }
                     }
                     ServerMessage::Err { code, message } => {
+                        self.pending_talk = false;
                         self.toasts.error(format!("Error {}: {}", code, message));
                     }
                     _ => {}

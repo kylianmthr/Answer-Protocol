@@ -1,6 +1,5 @@
 use crate::{
     broadcast::broadcast_room,
-    look::look,
     state::{SharedState, Turn},
 };
 use std::sync::Arc;
@@ -8,7 +7,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MoveError {
-    #[error("INVALID_DIRECTION")]
+    #[error("301 NO_EXIT")]
     InvalidDirection,
 }
 
@@ -53,6 +52,5 @@ pub async fn move_cmd(
         state.clone(),
     )
     .await;
-    let look_res = look(username.clone(), state.clone()).await;
-    Ok(look_res)
+    Ok(next_room_id)
 }
