@@ -95,6 +95,8 @@ pub struct Room {
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct Item {
+	#[validate(length(min = 1, max = 255))]
+	pub id: String,
     #[validate(length(min = 1, max = 255))]
     pub name: String,
     #[validate(length(min = 1, max = 255))]

@@ -531,7 +531,7 @@ impl eframe::App for MyTap {
                 .show_inside(ctx, |ui| {
                     ui.heading("Chat");
 					 ui.label(format!(
-                        "Players — room=: {} in server=: {}",
+                        "Players - room=: {} in server=: {}",
                         self.state_players.len(),
                         self.server_player_count
                     ));

@@ -75,58 +75,71 @@ world:
       npcs: ["npc.necromancien"]
 
   items:
-    item.herbs:
-      name: "Herbes Médicinales"
-      description: "Des herbes fraîches pour préparer des potions de soin."
-      obtainable: true
-    item.flocondavoine:
-      name: "Flocons d'avoine enchantés"
-      description: "C'est pas bon mais c'est solide, et ça brille un peu."
-      obtainable: true
-    item.bierebeurre:
-      name: "Bière au beurre"
-      description: "Chaude, mousseuse et réconfortante."
-      obtainable: true
-    item.wand:
-      name: "Baguette en bois de houx"
-      description: "Elle vibre légèrement dans votre main."
-      obtainable: true
-    item.cauldron:
-      name: "Chaudron en étain"
-      description: "Taille standard 2. Indispensable pour la botanique."
-      obtainable: true
-    item.wood:
-      name: "Bois de Wychwood"
-      description: "Un bois qui résiste au feu magique."
-      obtainable: true
-    item.grimoire:
-      name: "Grimoire de Lévitation"
-      description: "Un livre lourd traitant des sorts de déplacement."
-      obtainable: true
-    item.cristal:
-      name: "Cristal de Voyance"
-      description: "Une pierre polie qui permet de voir des fragments du futur."
-      obtainable: true
-    item.toad:
-      name: "Crapaud à pustules"
-      description: "Un ingrédient de potion ragoûtant mais nécessaire."
-      obtainable: true
-    item.bones:
-      name: "Os de Dragon"
-      description: "Anciens et imprégnés de magie de feu."
-      obtainable: true
-    item.amulet:
-      name: "Amulette de Protection"
-      description: "Protège contre les malédictions mineures."
-      obtainable: true
-    item.gold_coin:
-      name: "Gallion d'or"
-      description: "Une pièce d'or frappée du sceau de la banque des gobelins."
-      obtainable: true
-    item.potion:
-      name: "Potion de Chance"
-      description: "Un liquide doré qui pétille joyeusement."
-      obtainable: true
+      item.herbs:
+        id: "item.herbs"
+        name: "Herbes Médicinales"
+        description: "Des herbes fraîches pour préparer des potions de soin."
+        obtainable: true
+      item.flocondavoine:
+        id: "item.flocondavoine"
+        name: "Flocons d'avoine enchantés"
+        description: "C'est pas bon mais c'est solide, et ça brille un peu."
+        obtainable: true
+      item.bierebeurre:
+        id: "item.bierebeurre"
+        name: "Bière au beurre"
+        description: "Chaude, mousseuse et réconfortante."
+        obtainable: true
+      item.wand:
+        id: "item.wand"
+        name: "Baguette en bois de houx"
+        description: "Elle vibre légèrement dans votre main."
+        obtainable: true
+      item.cauldron:
+        id: "item.cauldron"
+        name: "Chaudron en étain"
+        description: "Taille standard 2. Indispensable pour la botanique."
+        obtainable: true
+      item.wood:
+        id: "item.wood"
+        name: "Bois de Wychwood"
+        description: "Un bois qui résiste au feu magique."
+        obtainable: true
+      item.grimoire:
+        id: "item.grimoire"
+        name: "Grimoire de Lévitation"
+        description: "Un livre lourd traitant des sorts de déplacement."
+        obtainable: true
+      item.cristal:
+        id: "item.cristal"
+        name: "Cristal de Voyance"
+        description: "Une pierre polie qui permet de voir des fragments du futur."
+        obtainable: true
+      item.toad:
+        id: "item.toad"
+        name: "Crapaud à pustules"
+        description: "Un ingrédient de potion ragoûtant mais nécessaire."
+        obtainable: true
+      item.bones:
+        id: "item.bones"
+        name: "Os de Dragon"
+        description: "Anciens et imprégnés de magie de feu."
+        obtainable: true
+      item.amulet:
+        id: "item.amulet"
+        name: "Amulette de Protection"
+        description: "Protège contre les malédictions mineures."
+        obtainable: true
+      item.gold_coin:
+        id: "item.gold_coin"
+        name: "Gallion d'or"
+        description: "Une pièce d'or frappée du sceau de la banque des gobelins."
+        obtainable: true
+      item.potion:
+        id: "item.potion"
+        name: "Potion de Chance"
+        description: "Un liquide doré qui pétille joyeusement."
+        obtainable: true
 
   npcs:
     npc.guard:
