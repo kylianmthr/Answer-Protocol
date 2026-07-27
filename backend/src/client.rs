@@ -5,6 +5,7 @@ use crate::attack::status;
 use crate::attack::use_item;
 use crate::broadcast::broadcast_global;
 use crate::broadcast::broadcast_group;
+use crate::broadcast::broadcast_room;
 use crate::chat::chat_room;
 use crate::flood_systeme::command_check_flooding;
 use crate::group::group_create;
@@ -184,7 +185,6 @@ async fn handle_commands(
                                 }
                             },
                             "QUIT" => {
-                                log_format(&mut write, &username, "OK bye").await.expect("Can't send goodbye message");
                                 reason = "quit";
                                 break;
                             },
@@ -394,6 +394,19 @@ async fn handle_commands(
     logs_format::log_output("INFO", "DISCONNECT", serde_json::json!({
         "player": username, "reason": reason, "ip": ip
     }));
+	let world_state = state.world_state.lock().await;
+	let player_room = world_state
+		.room
+		.get(&state.players.lock().await.get(&username).unwrap().room)
+		.unwrap();
+	let room_id = player_room.id.clone();
+	drop(world_state);
+	broadcast_room(
+		room_id.as_str(),
+		format!("EVT ROOM PRESENCE LEAVE {}", username).as_str(),
+		state.clone(),
+	)
+	.await;
     remove_player(&username, Arc::clone(&state)).await;
 	get_stats(&state).await;
 }
