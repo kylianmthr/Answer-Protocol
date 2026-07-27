@@ -24,10 +24,9 @@ pub async fn group_create(owner_name: &str, state: Arc<SharedState>) -> Result<S
 pub async fn group_invite(
     group_name: &str,
     player_name: &str,
-    owner_name: &str,
     state: Arc<SharedState>,
 ) -> Result<(), String> {
-    let mut groups = state.groups.lock().await;
+    let groups = state.groups.lock().await;
     let mut players = state.players.lock().await;
 
     if let Some(group) = groups.get(group_name) {

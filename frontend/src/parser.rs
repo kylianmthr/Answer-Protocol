@@ -1,5 +1,3 @@
-use thiserror::Error;
-
 pub enum EventType {
     PresenceEnter,
     PresenceLeave,
@@ -13,26 +11,42 @@ pub enum EventType {
     Combat,
 }
 
+impl std::fmt::Display for EventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EventType::PresenceEnter => write!(f, "PresenceEnter"),
+			EventType::PresenceLeave => write!(f, "PresenceLeave"),
+			EventType::RoomChat => write!(f, "RoomChat"),
+			EventType::GroupChat => write!(f, "GroupChat"),
+			EventType::GlobalChat => write!(f, "GlobalChat"),
+			EventType::Invite => write!(f, "Invite"),
+			EventType::Join => write!(f, "Join"),
+			EventType::Leave => write!(f, "Leave"),
+			EventType::Stats => write!(f, "Stats"),
+			EventType::Combat => write!(f, "Combat"),
+		}
+    }
+}
+
 pub enum ServerMessage {
     Ok(String),
     Err { code: u32, message: String },
     Evt { evt_type: EventType, data: String },
 }
 
-#[derive(Debug, Error)]
-enum UserError {
-    #[error("INVALID_USERNAME")]
-    InvalidUsername,
-    #[error("ALREADY_EXIST")]
-    AlreadyExist,
-    #[error("BAD_PREFIX")]
-    BadPrefix,
-    #[error("INVALID_READ")]
-    InvalidRead,
-}
+// #[derive(Debug, Error)]
+// enum UserError {
+//     #[error("INVALID_USERNAME")]
+//     InvalidUsername,
+//     #[error("ALREADY_EXIST")]
+//     AlreadyExist,
+//     #[error("BAD_PREFIX")]
+//     BadPrefix,
+//     #[error("INVALID_READ")]
+//     InvalidRead,
+// }
 
 pub fn parser(msg: &str) -> Result<ServerMessage, &str> {
-    println!("Parsing message: {}", msg);
     let mut parts = msg.splitn(2, ' ');
     let status = parts.next().unwrap_or("");
     let args = parts.next().unwrap_or("").trim();

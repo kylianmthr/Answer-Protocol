@@ -5,6 +5,7 @@ use crate::attack::status;
 use crate::attack::use_item;
 use crate::broadcast::broadcast_global;
 use crate::broadcast::broadcast_group;
+use crate::broadcast::broadcast_room;
 use crate::chat::chat_room;
 use crate::flood_systeme::command_check_flooding;
 use crate::group::group_create;
@@ -28,7 +29,6 @@ use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc;
-use serde_json;
 
 const UNAUTHENTICATED: &str = "unauthenticated";
 
@@ -134,11 +134,10 @@ async fn remove_player(username: &str, state: Arc<SharedState>) {
     };
     let mut world_state = state.world_state.lock().await;
     for (id, max_hp) in maxima {
-        if let Some(npc) = world_state.npcs.get_mut(&id) {
-            if npc.hp <= 0 {
+        if let Some(npc) = world_state.npcs.get_mut(&id)
+            && npc.hp <= 0 {
                 npc.hp = max_hp;
             }
-        }
     }
 }
 
@@ -155,7 +154,7 @@ async fn handle_commands(
     ip: String,
     state: Arc<SharedState>,
 ) {
-    let mut reason = "unknown";
+    let reason;
     loop {
         tokio::select! {
             line = lines.next_line() => {
@@ -186,12 +185,11 @@ async fn handle_commands(
                                 }
                             },
                             "QUIT" => {
-                                log_format(&mut write, &username, "OK bye").await.expect("Can't send goodbye message");
                                 reason = "quit";
                                 break;
                             },
                             "CHAT" => {
-                                let scope = args.splitn(2, ' ').next().unwrap_or("");
+                                let scope = args.split(' ').next().unwrap_or("");
                                 match scope {
                                     "ROOM" => {
                                         let message = args.strip_prefix("ROOM ").unwrap_or("").trim();
@@ -250,7 +248,7 @@ async fn handle_commands(
                                     log_format(&mut write, &username, "ERR 400 MISSING_ITEM_NAME").await.expect("Can't send missing item name error");
                                     continue;
                                 }
-                                let result = crate::items::drop(username.clone(), args.to_string(), Arc::clone(&state)).await;
+                                let result = crate::items::drop_item(username.clone(), args.to_string(), Arc::clone(&state)).await;
                                 if let Ok(response) = result {
                                     log_format(&mut write, &username, &response).await.expect("Can't send drop response");
                                 } else {
@@ -305,7 +303,7 @@ async fn handle_commands(
                                 log_format(&mut write, &username, &res).await.expect("Can't send status response");
                             },
                             "GROUP" => {
-                                let arg = args.splitn(2, ' ').next().unwrap_or("");
+                                let arg = args.split(' ').next().unwrap_or("");
                                 match arg {
                                     "CREATE" => {
                                         match group_create(username.clone().as_str(), Arc::clone(&state)).await {
@@ -329,7 +327,7 @@ async fn handle_commands(
                                             continue;
                                         };
                                         drop(players);
-                                        match group_invite(group_id.as_str(), player_name, username.clone().as_str(), Arc::clone(&state)).await {
+                                        match group_invite(group_id.as_str(), player_name, Arc::clone(&state)).await {
                                             Ok(_) => {
                                                 log_format(&mut write, &username, "OK").await.expect("Can't send group invite response");
                                             },
@@ -396,6 +394,19 @@ async fn handle_commands(
     logs_format::log_output("INFO", "DISCONNECT", serde_json::json!({
         "player": username, "reason": reason, "ip": ip
     }));
+	let world_state = state.world_state.lock().await;
+	let player_room = world_state
+		.room
+		.get(&state.players.lock().await.get(&username).unwrap().room)
+		.unwrap();
+	let room_id = player_room.id.clone();
+	drop(world_state);
+	broadcast_room(
+		room_id.as_str(),
+		format!("EVT ROOM PRESENCE LEAVE {}", username).as_str(),
+		state.clone(),
+	)
+	.await;
     remove_player(&username, Arc::clone(&state)).await;
 	get_stats(&state).await;
 }

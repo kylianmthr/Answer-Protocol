@@ -17,30 +17,30 @@ pub fn validate_exits(exits: &HashMap<String, String>) -> Result<(), ValidationE
 #[derive(Debug, Error)]
 pub enum WorldError {
     #[error("INVALID_EXIT_REF")]
-    InvalidExitRef,
+    Exit,
     #[error("INVALID_ITEM_REF")]
-    InvalidItemRef,
+    Item,
     #[error("INVALID_NPC_REF")]
-    InvalidNpcRef,
+    Npc,
     #[error("INVALID_ROOM_REF")]
-    InvalidRoomRef,
+    Room,
 }
 
 pub fn validate_yaml(world_data: &WorldData) -> Result<(), WorldError> {
     for room in world_data.world.rooms.values() {
         for exit in room.exits.values() {
             if !world_data.world.rooms.contains_key(exit) {
-                return Err(WorldError::InvalidExitRef);
+                return Err(WorldError::Exit);
             }
         }
         for item in &room.items {
             if !world_data.world.items.contains_key(item) {
-                return Err(WorldError::InvalidItemRef);
+                return Err(WorldError::Item);
             }
         }
         for npc in &room.npcs {
             if !world_data.world.npcs.contains_key(npc) {
-                return Err(WorldError::InvalidNpcRef);
+                return Err(WorldError::Npc);
             }
         }
     }
@@ -49,22 +49,21 @@ pub fn validate_yaml(world_data: &WorldData) -> Result<(), WorldError> {
         .rooms
         .contains_key(world_data.world.initial_room.as_str())
     {
-        return Err(WorldError::InvalidRoomRef);
+        return Err(WorldError::Room);
     }
     for npc in world_data.world.npcs.values() {
         if !world_data.world.rooms.contains_key(npc.room.as_str()) {
-            return Err(WorldError::InvalidRoomRef);
+            return Err(WorldError::Room);
         }
     }
 
     for npc in world_data.world.npcs.values() {
-        if let Some(quest) = &npc.quest {
-            if !world_data.world.items.contains_key(&quest.reward)
-                || !world_data.world.items.contains_key(&quest.objective)
+        if let Some(quest) = &npc.quest
+            && (!world_data.world.items.contains_key(&quest.reward)
+                || !world_data.world.items.contains_key(&quest.objective))
             {
-                return Err(WorldError::InvalidItemRef);
+                return Err(WorldError::Item);
             }
-        }
     }
     Ok(())
 }
