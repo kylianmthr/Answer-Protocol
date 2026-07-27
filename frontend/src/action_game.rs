@@ -9,6 +9,7 @@ pub enum StateAction {
     TAKE,
     QUIT,
 	WHO,
+	STATUS,
 }
 
 pub struct CommandButton {
@@ -86,6 +87,9 @@ impl CommandButton {
                         }
 						if Self::click_button(ui, "WHO", true) {
 							self.current_action = Some(StateAction::WHO);
+						}
+						if Self::click_button(ui, "STATUS", true) {
+							self.current_action = Some(StateAction::STATUS);
 						}
                     })
                     .response
@@ -179,6 +183,10 @@ impl CommandButton {
             }
 			Some(StateAction::WHO) => {
 				tx_outcomming.send("WHO".to_string()).unwrap();
+				self.current_action = None;
+			}
+			Some(StateAction::STATUS) => {
+				tx_outcomming.send("STATUS".to_string()).unwrap();
 				self.current_action = None;
 			}
             Some(StateAction::TALK) => {
