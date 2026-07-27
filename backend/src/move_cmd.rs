@@ -23,7 +23,7 @@ pub async fn move_cmd(
     }
     let world_data = state.world_data.lock().await;
     let room = world_data.world.rooms.get(player.room.as_str()).unwrap();
-    if room.exits.get(direction.as_str()).is_none() {
+    if !room.exits.contains_key(direction.as_str()) {
         return Err(MoveError::InvalidDirection);
     }
     let mut world_state = state.world_state.lock().await;

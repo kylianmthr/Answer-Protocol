@@ -99,7 +99,7 @@ pub struct Item {
     pub name: String,
     #[validate(length(min = 1, max = 255))]
     pub description: String,
-    pub obtainable: bool,
+    // pub obtainable: bool,
     #[serde(default)]
     pub heal: i32,
 }
@@ -175,13 +175,13 @@ impl WorldData {
         let world: Self = serde_yaml::from_str(&content).expect("Could not parse world data");
         world.validate().expect("World data validation failed");
         validate_yaml(&world).expect("World data cross-reference validation failed");
-        return world;
+        world
     }
 }
 
 #[derive(Debug)]
 pub struct NpcState {
-    pub room: String,
+    pub _room: String,
     pub hp: i32,
 }
 
@@ -201,7 +201,7 @@ pub struct WorldState {
 }
 
 
-pub struct track_flooding {
+pub struct TrackFlooding {
 	pub commands: HashMap<String, VecDeque<Instant>>,
 	pub connected: HashMap<String, VecDeque<Instant>>
 }
@@ -211,7 +211,7 @@ pub struct SharedState {
     pub world_data: Mutex<WorldData>,
     pub world_state: Mutex<WorldState>,
     pub groups: Mutex<HashMap<String, Group>>,
-	pub abuse: Mutex<track_flooding>
+	pub abuse: Mutex<TrackFlooding>
 }
 
 impl WorldState {
@@ -234,7 +234,7 @@ impl WorldState {
             npc_state.insert(
                 npc_name.clone(),
                 NpcState {
-                    room: npc.room.clone(),
+                    _room: npc.room.clone(),
                     hp: npc.hp,
                 },
             );
@@ -255,7 +255,7 @@ impl SharedState {
                 &path,
             ))),
             groups: Mutex::new(HashMap::new()),
-			abuse: Mutex::new( track_flooding {
+			abuse: Mutex::new( TrackFlooding {
 				commands: HashMap::new(),
 				connected: HashMap::new(),
 			}),

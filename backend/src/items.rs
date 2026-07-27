@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use crate::state::{SharedState};
 use crate::logs_format::log_output;
-use serde_json;
 
 pub async fn take(
     player_name: String,
@@ -83,13 +82,13 @@ pub async fn drop(
     Ok(format!("OK dropped={}", item_name_or_id))
 }
 
-pub async fn inventory(player_name: String, state: Arc<SharedState>) -> Result<String, String> {
-    let players = state.players.lock().await;
-    let player = players
-        .get(&player_name)
-        .ok_or_else(|| format!("Player '{}' not found", player_name))?;
-	log_output("INFO", "INVENTORY", serde_json::json!({
-							"player": player_name
-						}));
-	Ok(format!("OK inventory={:?}", player.inventory))
-}
+// pub async fn inventory(player_name: String, state: Arc<SharedState>) -> Result<String, String> {
+//     let players = state.players.lock().await;
+//     let player = players
+//         .get(&player_name)
+//         .ok_or_else(|| format!("Player '{}' not found", player_name))?;
+// 	log_output("INFO", "INVENTORY", serde_json::json!({
+// 							"player": player_name
+// 						}));
+// 	Ok(format!("OK inventory={:?}", player.inventory))
+// }

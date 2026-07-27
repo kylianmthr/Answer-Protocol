@@ -28,7 +28,6 @@ use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::tcp::OwnedWriteHalf;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc;
-use serde_json;
 
 const UNAUTHENTICATED: &str = "unauthenticated";
 
@@ -134,11 +133,10 @@ async fn remove_player(username: &str, state: Arc<SharedState>) {
     };
     let mut world_state = state.world_state.lock().await;
     for (id, max_hp) in maxima {
-        if let Some(npc) = world_state.npcs.get_mut(&id) {
-            if npc.hp <= 0 {
+        if let Some(npc) = world_state.npcs.get_mut(&id)
+            && npc.hp <= 0 {
                 npc.hp = max_hp;
             }
-        }
     }
 }
 
@@ -155,7 +153,7 @@ async fn handle_commands(
     ip: String,
     state: Arc<SharedState>,
 ) {
-    let mut reason = "unknown";
+    let reason;
     loop {
         tokio::select! {
             line = lines.next_line() => {
@@ -191,7 +189,7 @@ async fn handle_commands(
                                 break;
                             },
                             "CHAT" => {
-                                let scope = args.splitn(2, ' ').next().unwrap_or("");
+                                let scope = args.split(' ').next().unwrap_or("");
                                 match scope {
                                     "ROOM" => {
                                         let message = args.strip_prefix("ROOM ").unwrap_or("").trim();
@@ -305,7 +303,7 @@ async fn handle_commands(
                                 log_format(&mut write, &username, &res).await.expect("Can't send status response");
                             },
                             "GROUP" => {
-                                let arg = args.splitn(2, ' ').next().unwrap_or("");
+                                let arg = args.split(' ').next().unwrap_or("");
                                 match arg {
                                     "CREATE" => {
                                         match group_create(username.clone().as_str(), Arc::clone(&state)).await {
@@ -329,7 +327,7 @@ async fn handle_commands(
                                             continue;
                                         };
                                         drop(players);
-                                        match group_invite(group_id.as_str(), player_name, username.clone().as_str(), Arc::clone(&state)).await {
+                                        match group_invite(group_id.as_str(), player_name, Arc::clone(&state)).await {
                                             Ok(_) => {
                                                 log_format(&mut write, &username, "OK").await.expect("Can't send group invite response");
                                             },

@@ -468,25 +468,22 @@ impl MyTap {
                         )),
                 );
 
-                if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    if !chat_page.message_input.trim().is_empty() {
-                        if let Some(protocol_cmd) = resolve_command(&chat_page.message_input) {
-                            if protocol_cmd == "GROUP LEAVE" {
-                                *pending_group_leave = true;
-                            }
-                            tx.send(protocol_cmd).unwrap();
-                        } else if chat_page.message_input.starts_with('/') {
-                            // commande inconnue, idéalement un toast d'erreur ici
-                            // (faudrait threader `toasts` jusqu'à draw_chat si tu veux ce feedback)
-                        } else {
-                            tx.send(format!(
-                                "CHAT {} {}",
-                                chat_page.scope, chat_page.message_input
-                            ))
-                            .unwrap();
+                if res.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) && !chat_page.message_input.trim().is_empty() {
+                    if let Some(protocol_cmd) = resolve_command(&chat_page.message_input) {
+                        if protocol_cmd == "GROUP LEAVE" {
+                            *pending_group_leave = true;
                         }
-                        chat_page.message_input.clear();
+                        tx.send(protocol_cmd).unwrap();
+                    } else if chat_page.message_input.starts_with('/') {
+                        // Toast error
+                    } else {
+                        tx.send(format!(
+                            "CHAT {} {}",
+                            chat_page.scope, chat_page.message_input
+                        ))
+                        .unwrap();
                     }
+                    chat_page.message_input.clear();
                 }
             });
         });
@@ -581,7 +578,7 @@ impl eframe::App for MyTap {
         }
 
         let remove_border_bg =
-            egui::Frame::central_panel(&ctx.style()).inner_margin(egui::Margin::same(0));
+            egui::Frame::central_panel(ctx.style()).inner_margin(egui::Margin::same(0));
         egui::CentralPanel::default()
             .frame(remove_border_bg)
             .show_inside(ctx, |ui| {
@@ -620,32 +617,29 @@ impl eframe::App for MyTap {
 
         let mut transition: Option<Screen> = None;
 
-        if let Screen::LoginView(login_page) = &mut self.screen {
-            if login_page.waiting_res {
-                match self.rx_incoming.try_recv() {
-                    Ok(ServerMessage::Ok(_)) => {
-                        login_page.waiting_res = false;
-                        self.toasts.success("Login successful".to_string());
-                        self.tx_outgoing.send("LOOK".to_string()).unwrap();
-                        transition = Some(Screen::LoadingMod(90));
-                    }
-                    Ok(ServerMessage::Err { code, message }) => {
-                        self.toasts.error(format!("{} {}", code, message));
-                        login_page.waiting_res = false;
-                    }
-                    _ => {}
-                }
-            }
+        if let Screen::LoginView(login_page) = &mut self.screen && login_page.waiting_res {
+			match self.rx_incoming.try_recv() {
+				Ok(ServerMessage::Ok(_)) => {
+					login_page.waiting_res = false;
+					self.toasts.success("Login successful".to_string());
+					self.tx_outgoing.send("LOOK".to_string()).unwrap();
+					transition = Some(Screen::LoadingMod(90));
+				}
+				Ok(ServerMessage::Err { code, message }) => {
+					self.toasts.error(format!("{} {}", code, message));
+					login_page.waiting_res = false;
+				}
+				_ => {}
+			}
         }
 
-        if let Screen::LoadingMod(load_mod) = &mut self.screen {
-            if *load_mod == 0 {
+        if let Screen::LoadingMod(load_mod) = &mut self.screen
+            && *load_mod == 0 {
                 let room = self.pending_room.take().unwrap_or(StateRoom::Room1);
                 transition = Some(Screen::GameView(GameScreen {
                     current_room: room,
                     button_mod: CommandButton::macthing_action(),
                 }));
-            }
         }
 
         if let Screen::GameView(_) = &mut self.screen {
@@ -779,8 +773,8 @@ impl eframe::App for MyTap {
                     }
                     ServerMessage::Evt { evt_type, data } => match evt_type {
                         EventType::RoomChat => {
-                            let username = data.splitn(2, ' ').next().unwrap_or("").to_string();
-                            let content = data.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+                            let username = data.split(' ').next().unwrap_or("").to_string();
+                            let content = data.split(' ').nth(1).unwrap_or("").to_string();
                             self.chat_page.messages.push(Message {
                                 scope: Scope::Room,
                                 username,
@@ -788,8 +782,8 @@ impl eframe::App for MyTap {
                             });
                         }
                         EventType::GlobalChat => {
-                            let username = data.splitn(2, ' ').next().unwrap_or("").to_string();
-                            let content = data.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+                            let username = data.split(' ').next().unwrap_or("").to_string();
+                            let content = data.split(' ').nth(1).unwrap_or("").to_string();
                             self.chat_page.messages.push(Message {
                                 scope: Scope::Global,
                                 username,
@@ -797,8 +791,8 @@ impl eframe::App for MyTap {
                             });
                         }
                         EventType::GroupChat => {
-                            let username = data.splitn(2, ' ').next().unwrap_or("").to_string();
-                            let content = data.splitn(2, ' ').nth(1).unwrap_or("").to_string();
+                            let username = data.split(' ').next().unwrap_or("").to_string();
+                            let content = data.split(' ').nth(1).unwrap_or("").to_string();
                             self.chat_page.messages.push(Message {
                                 scope: Scope::Group,
                                 username,
@@ -828,7 +822,7 @@ impl eframe::App for MyTap {
                         EventType::Combat => {
                             self.toasts.info(format!("Combat: {}", data));
                         }
-                        _ => {}
+                        // _ => {}
                     },
 
                     ServerMessage::Err { code, message } => {
@@ -842,8 +836,8 @@ impl eframe::App for MyTap {
 
         if let Screen::CombatView(_) = &self.screen {
             let now = ctx.input(|i| i.time);
-            if let Screen::CombatView(c) = &mut self.screen {
-                if let Some(at) = c.enemy_turn_at {
+            if let Screen::CombatView(c) = &mut self.screen
+                && let Some(at) = c.enemy_turn_at {
                     if now >= at {
                         c.enemy_turn_at = None;
                         self.tx_outgoing
@@ -852,7 +846,6 @@ impl eframe::App for MyTap {
                     } else {
                         ctx.ctx().request_repaint();
                     }
-                }
             }
             while let Ok(msg) = self.rx_incoming.try_recv() {
                 match msg {

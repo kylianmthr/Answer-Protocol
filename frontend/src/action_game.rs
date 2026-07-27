@@ -1,15 +1,15 @@
 #[derive(Clone)]
 pub enum StateAction {
-    INVENTORY,
-    ATTACK,
-    MOVE,
-    LOOK,
-    TALK,
-    QUEST,
-    TAKE,
-    QUIT,
-	WHO,
-	STATUS,
+    Inventory,
+    Attack,
+    Move,
+    Look,
+    Talk,
+    Quest,
+    Take,
+    Quit,
+	Who,
+	Status,
 }
 
 pub struct CommandButton {
@@ -64,32 +64,32 @@ impl CommandButton {
                 ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
                         if Self::click_button(ui, "MOVE", true) {
-                            self.current_action = Some(StateAction::MOVE);
+                            self.current_action = Some(StateAction::Move);
                         }
                         if Self::click_button(ui, "ATTACK", true) {
-                            self.current_action = Some(StateAction::ATTACK);
+                            self.current_action = Some(StateAction::Attack);
                         }
                         if Self::click_button(ui, "LOOK", true) {
-                            self.current_action = Some(StateAction::LOOK);
+                            self.current_action = Some(StateAction::Look);
                         }
                         if Self::click_button(ui, "TALK", true) {
-                            self.current_action = Some(StateAction::TALK);
+                            self.current_action = Some(StateAction::Talk);
                         }
                         if Self::click_button(ui, "INVENTORY", true) {
                             tx_outcomming.send("INVENTORY".to_string()).unwrap();
-                            self.current_action = Some(StateAction::INVENTORY);
+                            self.current_action = Some(StateAction::Inventory);
                         }
                         if Self::click_button(ui, "QUEST", true) {
-                            self.current_action = Some(StateAction::QUEST);
+                            self.current_action = Some(StateAction::Quest);
                         }
                         if Self::click_button(ui, "TAKE", true) {
-                            self.current_action = Some(StateAction::TAKE);
+                            self.current_action = Some(StateAction::Take);
                         }
 						if Self::click_button(ui, "WHO", true) {
-							self.current_action = Some(StateAction::WHO);
+							self.current_action = Some(StateAction::Who);
 						}
 						if Self::click_button(ui, "STATUS", true) {
-							self.current_action = Some(StateAction::STATUS);
+							self.current_action = Some(StateAction::Status);
 						}
                     })
                     .response
@@ -97,13 +97,13 @@ impl CommandButton {
                 ui.put(rect_put_top, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
                         if Self::click_button(ui, "QUIT", true) {
-                            self.current_action = Some(StateAction::QUIT);
+                            self.current_action = Some(StateAction::Quit);
                         }
                     })
                     .response
                 });
             }
-            Some(StateAction::MOVE) => {
+            Some(StateAction::Move) => {
                 let go_north = avaiable_vecpos.contains(&"north".to_string());
                 let go_south = avaiable_vecpos.contains(&"south".to_string());
                 let go_east = avaiable_vecpos.contains(&"east".to_string());
@@ -134,7 +134,7 @@ impl CommandButton {
                     .response
                 });
             }
-            Some(StateAction::INVENTORY) => {
+            Some(StateAction::Inventory) => {
                 ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
                         if inventory.is_empty() {
@@ -154,7 +154,7 @@ impl CommandButton {
                     .response
                 });
             }
-            Some(StateAction::ATTACK) => {
+            Some(StateAction::Attack) => {
                 ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
                         if available_npcs.is_empty() {
@@ -177,19 +177,19 @@ impl CommandButton {
                     .response
                 });
             }
-            Some(StateAction::LOOK) => {
+            Some(StateAction::Look) => {
                 tx_outcomming.send("LOOK".to_string()).unwrap();
                 self.current_action = None;
             }
-			Some(StateAction::WHO) => {
+			Some(StateAction::Who) => {
 				tx_outcomming.send("WHO".to_string()).unwrap();
 				self.current_action = None;
 			}
-			Some(StateAction::STATUS) => {
+			Some(StateAction::Status) => {
 				tx_outcomming.send("STATUS".to_string()).unwrap();
 				self.current_action = None;
 			}
-            Some(StateAction::TALK) => {
+            Some(StateAction::Talk) => {
                 ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
                         if available_npcs.is_empty() {
@@ -210,7 +210,7 @@ impl CommandButton {
                     .response
                 });
             }
-            Some(StateAction::QUEST) => {
+            Some(StateAction::Quest) => {
                 ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
                         if available_npcs.is_empty() {
@@ -234,7 +234,7 @@ impl CommandButton {
                     .response
                 });
             }
-            Some(StateAction::TAKE) => {
+            Some(StateAction::Take) => {
                 ui.put(rect_put_bottom, |ui: &mut egui::Ui| {
                     ui.horizontal(|ui| {
                         if available_items.is_empty() {
@@ -259,7 +259,7 @@ impl CommandButton {
                     .response
                 });
             }
-            Some(StateAction::QUIT) => {
+            Some(StateAction::Quit) => {
                 tx_outcomming.send("QUIT".to_string()).unwrap();
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
             }
