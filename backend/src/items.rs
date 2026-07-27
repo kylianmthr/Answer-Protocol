@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::broadcast::broadcats_room_except;
 use crate::state::{SharedState};
 use crate::logs_format::log_output;
 
@@ -8,7 +9,6 @@ pub async fn take(
     item_name_or_id: String,
     state: Arc<SharedState>,
 ) -> Result<String, String> {
-	println!("test");
     let mut world_state = state.world_state.lock().await;
 	let world_data = state.world_data.lock().await;
     let mut players = state.players.lock().await;
@@ -37,7 +37,9 @@ pub async fn take(
 
 	room.items.retain(|item| item != &item_id);
 	player.inventory.push(item_id.clone());
-
+	drop(players);
+	broadcats_room_except(&room_id, &player_name, "OK refresh",
+	Arc::clone(&state),).await;
 	log_output(
 		"INFO",
 		"TAKEN",
@@ -51,7 +53,7 @@ pub async fn take(
 	Ok(format!("OK taken={}", item_id))
 }
 
-pub async fn drop(
+pub async fn drop_item(
     player_name: String,
     item_name_or_id: String,
     state: Arc<SharedState>,
@@ -69,7 +71,6 @@ pub async fn drop(
 
     let room_id = player.room.clone();
 
-    // Résout item_name_or_id vers un id concret présent dans l'inventaire
     let item_id: String = if player.inventory.contains(&item_name_or_id) {
         item_name_or_id.clone()
     } else {
@@ -84,7 +85,9 @@ pub async fn drop(
 
     player.inventory.retain(|item| item != &item_id);
     room.items.push(item_id.clone());
-
+	drop(players);
+	broadcats_room_except(&room_id, &player_name, "refresh",
+	Arc::clone(&state),).await;
     log_output(
         "INFO",
         "DROPPED",

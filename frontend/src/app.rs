@@ -25,6 +25,7 @@ pub struct MyTap {
     server_logs: Vec<String>,
     pending_talk: bool,
     pending_group_leave: bool,
+	look_refresh: bool
 }
 #[warn(unreachable_patterns)]
 impl MyTap {
@@ -48,6 +49,7 @@ impl MyTap {
             server_logs: Vec::new(),
             pending_talk: false,
             pending_group_leave: false,
+			look_refresh: false,
         }
     }
 }
@@ -659,26 +661,42 @@ impl eframe::App for MyTap {
                             self.toasts.info("You left the group".to_string());
                             continue;
                         }
-                        if reponse.starts_with("room=") {
+						println!("{}", reponse);
+						if reponse == "refresh" {
+							if !self.look_refresh {
+								self.look_refresh = true;
+								self.tx_outgoing.send("LOOK".to_string()).unwrap();
+							}
+						}
+                        else if reponse.starts_with("room=") {
                             self.tx_outgoing.send("LOOK".to_string()).unwrap();
                         }
-                        if let Some(exits) = json_object_keys(&reponse, "exits") {
-                            self.state_exits = exits;
-                        }
+                        // else if let Some(exits) = json_object_keys(&reponse, "exits") {
+                        //     self.state_exits = exits;
+                        // }
 
-                        if let Some(items) = json_array(&reponse, "items") {
-                            self.state_items = items;
-                        }
-                        if let Some(item_id) = reponse.strip_prefix("taken=") {
+                        // else if let Some(items) = json_array(&reponse, "items") {
+                        //     self.state_items = items;
+                        // }
+                        else if let Some(item_id) = reponse.strip_prefix("taken=") {
                             self.state_items.retain(|i| i != item_id);
                             self.state_inventory.push(item_id.to_string());
                             self.toasts.success(format!("Took {}", item_id));
-                        }
-                        if let Some(item_id) = reponse.strip_prefix("dropped=") {
+						}
+                        else if let Some(item_id) = reponse.strip_prefix("dropped=") {
                             self.state_inventory.retain(|i| i != item_id);
                             self.state_items.push(item_id.to_string());
                             self.toasts.success(format!("Dropped {}", item_id));
                         }
+						else {
+							if let Some(exits) = json_object_keys(&reponse, "exits") {
+								self.state_exits = exits;
+							}
+							if let Some(items) = json_array(&reponse, "items") {
+								self.state_items = items;
+								self.look_refresh = false;
+							}
+						}
                         if reponse.starts_with('[') && reponse.contains("\"item.") {
                             self.state_inventory = parse_bare_array(&reponse);
                         }

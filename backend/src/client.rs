@@ -248,7 +248,7 @@ async fn handle_commands(
                                     log_format(&mut write, &username, "ERR 400 MISSING_ITEM_NAME").await.expect("Can't send missing item name error");
                                     continue;
                                 }
-                                let result = crate::items::drop(username.clone(), args.to_string(), Arc::clone(&state)).await;
+                                let result = crate::items::drop_item(username.clone(), args.to_string(), Arc::clone(&state)).await;
                                 if let Ok(response) = result {
                                     log_format(&mut write, &username, &response).await.expect("Can't send drop response");
                                 } else {
